@@ -2299,6 +2299,7 @@ int main() {
   // TODO: test that unfilled short orders cost us the correct borrow fee daily
   // TODO: test that short orders that are too large are rejected (how large is too large?)
 
+  // TODO: borrow fee/interest is based on lots of 100
 
   // Shorting test
   //
@@ -2342,6 +2343,7 @@ int main() {
   // Cash balance is not reduced upon placing market order without fill
   // Buying power changes dynamically without any fills to follow current market price
   // Buying into margin results in a negative cash value 49557.42 -> -38004.58
+  // https://alpaca.markets/docs/trading/user-protections/ - Selling short and covering the short on the same day is also considered a day trade.
 
   testResults();
 };
