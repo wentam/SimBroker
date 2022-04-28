@@ -267,12 +267,8 @@ double SimBroker::getEquity() {
   double equity = this->balance;
   
   for (auto& p : this->positions) {
-    if (p.qty > 0) {
-      double value = this->stockDataSource->getPrice(p.symbol, this->clock);
-      equity += p.qty*value;
-    } else if (p.qty < 0) {
-    // TODO short positions
-    }
+    double value = this->stockDataSource->getPrice(p.symbol, this->clock);
+    equity += p.qty*value;
   }
 
   return equity;

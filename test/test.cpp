@@ -2212,10 +2212,14 @@ int main() {
     SimBroker::OrderPlan p = {};
     p.symbol = "SPY";
     p.qty = -10;
-    simBroker.placeOrder(p);
+    auto oid = simBroker.placeOrder(p);
     simBroker.updateClock(simBroker.getClock()+(3600*2));
     double equity2 = simBroker.getEquity();
 
+    //double price1 = simBroker.getOrder(oid).filledAvgPrice;
+    //double price2 = mSource.getPrice("SPY", simBroker.getClock());
+
+    //printf("%lf->%lf\n", price1, price2);
     //printf("%lf->%lf\n", equity1, equity2);
     return equity2 >= equity1+23.99 &&
            equity2 <= equity1+24.01;
@@ -2298,8 +2302,10 @@ int main() {
 
   // TODO: test that unfilled short orders cost us the correct borrow fee daily
   // TODO: test that short orders that are too large are rejected (how large is too large?)
-
-  // TODO: borrow fee/interest is based on lots of 100
+  // TODO: round trip short trades equity/balance/buying power
+  // TODO: interest
+  // borrow fee/interest is based on lots of 100?
+  // TODO: short position margin calls
 
   // Shorting test
   //
