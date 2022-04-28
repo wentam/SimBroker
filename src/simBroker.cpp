@@ -98,9 +98,25 @@ uint64_t SimBroker::placeOrder(OrderPlan p) {
     }
 
     this->marginEnabled = me;
-  } else {
+  } else if (o.qty < 0) {
     // Set status for sell orders
-    o.status = SimBroker::OrderStatus::OPEN;
+    int64_t existingQty = 0;
+    for (auto p : this->getPositions())  { if (p.symbol == o.symbol) existingQty += p.qty; }
+
+    bool isShort = (existingQty+o.qty) < 0;
+
+    if (isShort) {
+      // Short order
+      o.status = SimBroker::OrderStatus::OPEN;
+      if (!this->marginEnabled) o.status = SimBroker::OrderStatus::REJECTED;
+      if (!this->stockDataSource->isTickerShortable(o.symbol, this->clock)) o.status = SimBroker::OrderStatus::REJECTED;
+    } else {
+      // Long order
+      o.status = SimBroker::OrderStatus::OPEN;
+    }
+  } else {
+    // Order quantity of zero is not valid
+    o.status = SimBroker::OrderStatus::REJECTED;
   }
 
   orders.push_back(o);
