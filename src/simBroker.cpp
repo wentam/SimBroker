@@ -110,6 +110,7 @@ uint64_t SimBroker::placeOrder(OrderPlan p) {
       o.status = SimBroker::OrderStatus::OPEN;
       if (!this->marginEnabled) o.status = SimBroker::OrderStatus::REJECTED;
       if (!this->stockDataSource->isTickerShortable(o.symbol, this->clock)) o.status = SimBroker::OrderStatus::REJECTED;
+      if (!this->stockDataSource->isTickerETB(o.symbol, this->clock)) o.status = SimBroker::OrderStatus::REJECTED;
     } else {
       // Long order
       o.status = SimBroker::OrderStatus::OPEN;
