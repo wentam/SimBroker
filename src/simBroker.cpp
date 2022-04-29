@@ -111,6 +111,7 @@ uint64_t SimBroker::placeOrder(OrderPlan p) {
       if (!this->marginEnabled) o.status = SimBroker::OrderStatus::REJECTED;
       if (!this->stockDataSource->isTickerShortable(o.symbol, this->clock)) o.status = SimBroker::OrderStatus::REJECTED;
       if (!this->stockDataSource->isTickerETB(o.symbol, this->clock)) o.status = SimBroker::OrderStatus::REJECTED;
+      if (existingQty > 0) o.status = SimBroker::OrderStatus::REJECTED;
     } else {
       // Long order
       o.status = SimBroker::OrderStatus::OPEN;
@@ -251,7 +252,6 @@ void SimBroker::updateState() {
   if (this->marginEnabled && this->marginCallHandlerDefined && this->balance < 0) {
     double equity = this->getEquity();
     double assets = equity-this->balance;
-    //double costBasis = this->getTotalCostBasis();
     double minVal = (-this->balance)/(1-this->maintenanceMarginRequirement);
     if (assets < minVal) {
       this->marginCallHandler();

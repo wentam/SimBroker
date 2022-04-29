@@ -2337,6 +2337,27 @@ int main() {
            o2.status == SimBroker::OrderStatus::REJECTED;
   }, "Only tickers that are marked as shortable can be shorted");
 
+  test([&mSource, &neverShortableSource]() {
+    SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1645650000-(4*3600), true); // 4 hours before market close
+    simBroker.addFunds(9000000);
+
+    // Buy 10 shares
+    SimBroker::OrderPlan p = {};
+    p.symbol = "SPY";
+    p.qty = 10;
+    auto oid1 = simBroker.placeOrder(p);
+    simBroker.updateClock(simBroker.getClock()+3600);
+
+    // Sell 20 shares
+    p.qty = -20;
+    auto oid2 = simBroker.placeOrder(p);
+
+    auto o1 = simBroker.getOrder(oid1);
+    auto o2 = simBroker.getOrder(oid2);
+
+    return o2.status == SimBroker::OrderStatus::REJECTED;
+  }, "If you try to order a short position with a long position already open, the order is rejected");
+
   // TODO: test that unfilled short orders cost us the correct borrow fee daily
   // TODO: test that short orders that are too large are rejected (how large is too large?)
   // TODO: round trip short trades equity/balance/buying power
