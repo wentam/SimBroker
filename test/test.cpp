@@ -1483,6 +1483,35 @@ int main() {
     marketp.timeInForce = SimBroker::OrderTimeInForce::GOOD_TILL_CANCELLED;
     simBroker.placeOrder(marketp);
     simBroker.updateClock(simBroker.getClock()+3600);
+    double bp1 = simBroker.getBuyingPower();
+
+    SimBroker::OrderPlan sellp = marketp;
+    sellp.qty = -marketp.qty;
+    sellp.type = SimBroker::OrderType::LIMIT;
+    sellp.limitPrice = 800;
+
+    auto oid = simBroker.placeOrder(sellp);
+    simBroker.updateClock(simBroker.getClock()+3600);
+
+    double bp2 = simBroker.getBuyingPower();
+    //printf("%lf->%lf\n", bp1, bp2);
+    return bp1 == bp2;
+  }, "Unfilled limit sell orders don't touch buying power");
+
+  test([&mSource]() {
+    SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 50, false);
+    simBroker.addFunds(9000000);
+    simBroker.updateClock(1645108739);
+
+
+    SimBroker::OrderPlan marketp = {};
+    marketp.symbol = "SPY";
+    marketp.qty = 5000;
+    //marketp.side = SimBroker::OrderSide::BUY;
+    marketp.type = SimBroker::OrderType::MARKET;
+    marketp.timeInForce = SimBroker::OrderTimeInForce::GOOD_TILL_CANCELLED;
+    simBroker.placeOrder(marketp);
+    simBroker.updateClock(simBroker.getClock()+3600);
 
     SimBroker::OrderPlan sellp = marketp;
     sellp.qty = -marketp.qty;
@@ -2166,7 +2195,11 @@ int main() {
     simBroker.updateClock(simBroker.getClock()+3600);
     double bp2 = simBroker.getBuyingPower();
    
-//    printf("%lf->%lf\n", bp1, bp2);
+    //double price1 = simBroker.getOrder(oid).filledAvgPrice;
+    //double price2 = mSource.getPrice("SPY", simBroker.getClock());
+
+    //printf("%lf->%lf\n", price1, price2);
+    //printf("%lf->%lf\n", bp1, bp2);
     return bp2 == bp1-10000;
   }, "Unfilled short positions reduce our buying power by the correct amount"); 
 
@@ -2178,13 +2211,17 @@ int main() {
     SimBroker::OrderPlan p = {};
     p.symbol = "SPY";
     p.qty = -10;
-    simBroker.placeOrder(p);
+    auto oid = simBroker.placeOrder(p);
     simBroker.updateClock(simBroker.getClock()+3600);
     double bp2 = simBroker.getBuyingPower();
  
+    //double price1 = simBroker.getOrder(oid).filledAvgPrice;
+    //double price2 = mSource.getPrice("SPY", simBroker.getClock());
+
+    //printf("%lf->%lf\n", price1, price2);
     //printf("%lf->%lf\n", bp1, bp2);
-    return bp2 <= bp1-9000 &&
-           bp2 >= bp1-11000;
+    return bp2 <= bp1-4200 &&
+           bp2 >= bp1-4300;
   }, "Filled short positions reduce our buying power by the correct amount"); 
 
   test([&mSource]() {
@@ -2306,6 +2343,8 @@ int main() {
   // TODO: interest
   // borrow fee/interest is based on lots of 100?
   // TODO: short position margin calls
+  // TODO: you must have <=0 quantity to short a stock. If you have a long position, it must be cleared first
+  // TODO: test that exception is thrown on a margin call if no handler is defined
 
   // Shorting test
   //
@@ -2317,7 +2356,7 @@ int main() {
   // Value: 0.00->0.00
   //
   //
-  // Filled short: LIMIT SHORT: 4000 (10*400)
+  // Filled short: LIMIT SHORT: 4000 (10*400) Real 4,390.9
   //
   // Equity:       49,559.36->49,559.06 (stock went up)
   // Buying power: 99,118.72->94,726.92 (changing as stock moves around)
@@ -2337,6 +2376,7 @@ int main() {
   //
   // TODO: test that limit orders have the correct effect on buying power in both buy and sell situations
 
+  // TODO: tests that compare with real-world behavior on brokerage, such as buying power over time after shorting a stock
 
   // Longer term tasks:
   // TODO: test orders quantities near int64_t max

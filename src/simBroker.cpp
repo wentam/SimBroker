@@ -274,12 +274,6 @@ double SimBroker::getEquity() {
   return equity;
 }
 
-uint64_t SimBroker::getClock() { return this->clock; }
-void SimBroker::addFunds(double chedda) { this->balance += chedda; }
-void SimBroker::rmFunds(double chedda) { this->balance -= chedda; }
-std::vector<SimBroker::Order> SimBroker::getOrders() { return this->orders; }
-std::vector<SimBroker::Position> SimBroker::getPositions() { return this->positions; }
-
 void SimBroker::cancelOrder(uint64_t oid) { 
   for (auto& o : this->orders) { if (o.id == oid) { o.status = OrderStatus::CANCELLED; return; } }
   throw std::logic_error("Invalid order ID");
@@ -295,21 +289,39 @@ double SimBroker::getBuyingPower() {
   double buyingPower = this->balance;
 
   if (this->marginEnabled) {
-    double equity = this->getEquity();
-    buyingPower = equity/this->initialMarginRequirement;
-    buyingPower -= equity-this->balance; // Subtract the value of our owned assets
+    double assetValue = 0; 
+    for (auto p : this->getPositions()) {
+      double price = this->stockDataSource->getPrice(p.symbol, this->clock);
+      assetValue += p.qty*price;
+    }
+
+    // We can't use the cash we earned from selling borrowed shares as collateral before the short is filled
+    double shortPositionSaleValue = 0.0; 
+    for (auto p : this->getPositions()) {
+      if (p.qty < 0) shortPositionSaleValue -= p.avgEntryPrice*p.qty;
+    }
+
+    double availableCollateral = (this->getBalance()-shortPositionSaleValue)+assetValue;
+
+    buyingPower = (availableCollateral/this->initialMarginRequirement)-assetValue;
   }
 
   for (auto& o : this->orders) {
     if (o.filledQty == o.qty) continue; // Filled orders don't effect buying power
     if (o.status != SimBroker::OrderStatus::OPEN) continue; // Only open orders effect buying power
-    if (o.qty < 0) continue; // Sell orders don't effect buying power
+    
+    // Long sell orders don't effect buying power
+    if (o.qty < 0) {
+      int64_t pqty = 0;
+      for (auto p : this->getPositions()) { if (p.symbol == o.symbol) pqty += p.qty; }
+      if (pqty > 0) continue; 
+    }
 
-    uint64_t sharesToBeFilled = o.qty-o.filledQty;
+    int64_t sharesToBeFilled = labs(o.qty-o.filledQty);
 
-    if (sharesToBeFilled > 0) {
+    if (sharesToBeFilled != 0) {
       double price = this->stockDataSource->getPrice(o.symbol, this->clock); 
-      if (o.type == SimBroker::OrderType::LIMIT && o.limitPrice < price) {
+      if (o.type == SimBroker::OrderType::LIMIT) {
         buyingPower -= o.limitPrice*sharesToBeFilled;
       } else {
         buyingPower -= price*sharesToBeFilled;
@@ -353,6 +365,11 @@ void SimBroker::addToPosition(std::string symbol, int64_t qty, double avgPrice) 
   }
 }
 
+uint64_t SimBroker::getClock() { return this->clock; }
+void SimBroker::addFunds(double chedda) { this->balance += chedda; }
+void SimBroker::rmFunds(double chedda) { this->balance -= chedda; }
+std::vector<SimBroker::Order> SimBroker::getOrders() { return this->orders; }
+std::vector<SimBroker::Position> SimBroker::getPositions() { return this->positions; }
 void SimBroker::setInterestRate(double rate) { this->interestRate = rate; }
 double SimBroker::getInterestRate() { return this->interestRate; }
 void SimBroker::setInitialMarginRequirement(double req) { this->initialMarginRequirement = req; }

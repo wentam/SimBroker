@@ -3,6 +3,9 @@
 #include <vector>
 #include <functional>
 
+// TODO: terminology for assets is inconsistant: "symbol" "ticker". "asset" is probably a better
+// term
+
 // Implement this to provide SimBroker with data.
 // If your data comes from an external resource such as an API,
 // it is recommended to build an on-disk cache mechanism as we pull
@@ -31,6 +34,8 @@ class SimBrokerStockDataSource {
       uint64_t time;
     };
 
+    // Should not include *any* data after endTime or before startTime 
+    // The duration that the last bar covers should entirely reside in the specified window.
     virtual std::vector<Bar> getMinuteBars(std::string ticker, uint64_t startTime, uint64_t endTime) = 0;
 
     // TODO: it would be better to split getPrice up into getBidPrice and getAskPrice.
