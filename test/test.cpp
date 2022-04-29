@@ -2356,7 +2356,19 @@ int main() {
     auto o2 = simBroker.getOrder(oid2);
 
     return o2.status == SimBroker::OrderStatus::REJECTED;
-  }, "If you try to order a short position with a long position already open, the order is rejected");
+  }, "If a short order is submitted with a long position already open, the order is rejected");
+
+  test([&mSource, &neverShortableSource]() {
+    SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1645650000-(4*3600), true); // 4 hours before market close
+    simBroker.addFunds((19*440)/2);
+
+    // Sell 20 shares
+    SimBroker::OrderPlan p = {};
+    p.symbol = "SPY";
+    p.qty = -20;
+    auto o1 = simBroker.getOrder(simBroker.placeOrder(p));
+    return o1.status == SimBroker::OrderStatus::REJECTED;
+  }, "If a short order that exceeds our available buying power is submitted, the order is rejected");
 
   // TODO: test that unfilled short orders cost us the correct borrow fee daily
   // TODO: test that short orders that are too large are rejected (how large is too large?)
@@ -2364,7 +2376,6 @@ int main() {
   // TODO: interest
   // borrow fee/interest is based on lots of 100?
   // TODO: short position margin calls
-  // TODO: you must have <=0 quantity to short a stock. If you have a long position, it must be cleared first
   // TODO: test that exception is thrown on a margin call if no handler is defined
 
   // Shorting test

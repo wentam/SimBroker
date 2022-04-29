@@ -100,6 +100,7 @@ uint64_t SimBroker::placeOrder(OrderPlan p) {
     this->marginEnabled = me;
   } else if (o.qty < 0) {
     // Set status for sell orders
+    double price = this->stockDataSource->getPrice(o.symbol, this->clock);
     int64_t existingQty = 0;
     for (auto p : this->getPositions())  { if (p.symbol == o.symbol) existingQty += p.qty; }
 
@@ -112,6 +113,7 @@ uint64_t SimBroker::placeOrder(OrderPlan p) {
       if (!this->stockDataSource->isTickerShortable(o.symbol, this->clock)) o.status = SimBroker::OrderStatus::REJECTED;
       if (!this->stockDataSource->isTickerETB(o.symbol, this->clock)) o.status = SimBroker::OrderStatus::REJECTED;
       if (existingQty > 0) o.status = SimBroker::OrderStatus::REJECTED;
+      if (this->getBuyingPower() < labs(o.qty*price)) o.status = SimBroker::OrderStatus::REJECTED;
     } else {
       // Long order
       o.status = SimBroker::OrderStatus::OPEN;
