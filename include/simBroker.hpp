@@ -123,6 +123,13 @@ class SimBroker {
       double filledAvgPrice;
 
       OrderStatus status;
+
+      struct OrderStatusHistoryEntry {
+        OrderStatus status;
+        uint64_t time; // The start time/time at which this order obtained this status
+      };
+
+      std::vector<OrderStatusHistoryEntry> orderStatusHistory;
     };
 
     SimBroker(SimBrokerStockDataSource* dataSource, uint64_t startTime, bool margin);
@@ -162,6 +169,10 @@ class SimBroker {
     void eachBar(std::string ticker, uint64_t startTime, std::function<bool(SimBrokerStockDataSource::Bar b)> func);
     void updateOrderFillState(Order& o);
     void updateOrderTIF(Order& o);
+
+    // Updates order history as well as sets the status on the order (DO NOT SET ORDER STATUS DIRECTLY)
+    // time: the time at which this status became active
+    void setOrderStatus(Order& o, OrderStatus status, uint64_t time); 
 
     // Will create position if it doesn't exist
     // Will remove position if it ends up at a qty of zero

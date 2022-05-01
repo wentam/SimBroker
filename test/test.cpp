@@ -1902,7 +1902,7 @@ int main() {
     limitp.symbol = "SPY";
     limitp.qty = 1;
     limitp.type = SimBroker::OrderType::LIMIT;
-    limitp.limitPrice = 9999999; // This order will never fill
+    limitp.limitPrice = 1; // This order will never fill
     limitp.timeInForce = SimBroker::OrderTimeInForce::DAY;
     double bp = simBroker.getBuyingPower();
     auto oid = simBroker.placeOrder(limitp);
@@ -2536,7 +2536,7 @@ int main() {
     auto o = simBroker.getOrder(oid);
     double price = mSource.getPrice("GME", simBroker.getClock());
 
-    //printf("%lf %ld %lf\n", price, o.filledQty, o.filledAvgPrice);
+    //printf("%lf %ld %lf status: %d\n", price, o.filledQty, o.filledAvgPrice, o.status);
 
     return marginCalled;
   }, "If the price rises enough while we are holding a short position, we get margin called");
@@ -2554,6 +2554,9 @@ int main() {
   // TODO: use dround instead of < and > for float comparisons in these tests
 
   // TODO: submitting a limit order without a limit price should throw an exception
+
+  // TODO: test that an order status history item is added immediatly upon creating the order
+  // TODO: test that an order status history item for rejected is added when an order is rejected
 
   // Shorting test
   //

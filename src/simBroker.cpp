@@ -105,9 +105,9 @@ uint64_t SimBroker::placeOrder(OrderPlan p) {
     bool me = this->marginEnabled;
     this->marginEnabled = (this->stockDataSource->isTickerMarginable(p.symbol, this->clock) && me);
     if (this->getBuyingPower() >= (o.qty*price)) {
-      o.status = SimBroker::OrderStatus::OPEN;
+      this->setOrderStatus(o,SimBroker::OrderStatus::OPEN, this->clock);
     } else {
-      o.status = SimBroker::OrderStatus::REJECTED;
+      this->setOrderStatus(o, SimBroker::OrderStatus::REJECTED, this->clock);
     }
 
     this->marginEnabled = me;
@@ -121,19 +121,25 @@ uint64_t SimBroker::placeOrder(OrderPlan p) {
 
     if (isShort) {
       // Short order
-      o.status = SimBroker::OrderStatus::OPEN;
-      if (!this->marginEnabled) o.status = SimBroker::OrderStatus::REJECTED;
-      if (!this->stockDataSource->isTickerShortable(o.symbol, this->clock)) o.status = SimBroker::OrderStatus::REJECTED;
-      if (!this->stockDataSource->isTickerETB(o.symbol, this->clock)) o.status = SimBroker::OrderStatus::REJECTED;
-      if (existingQty > 0) o.status = SimBroker::OrderStatus::REJECTED;
-      if (this->getBuyingPower() < labs(o.qty*price)) o.status = SimBroker::OrderStatus::REJECTED;
+      this->setOrderStatus(o,SimBroker::OrderStatus::OPEN, this->clock);
+
+      if (!this->marginEnabled) 
+        this->setOrderStatus(o, SimBroker::OrderStatus::REJECTED, this->clock);
+      if (!this->stockDataSource->isTickerShortable(o.symbol, this->clock)) 
+        this->setOrderStatus(o, SimBroker::OrderStatus::REJECTED, this->clock);
+      if (!this->stockDataSource->isTickerETB(o.symbol, this->clock)) 
+        this->setOrderStatus(o, SimBroker::OrderStatus::REJECTED, this->clock);
+      if (existingQty > 0)
+        this->setOrderStatus(o, SimBroker::OrderStatus::REJECTED, this->clock);
+      if (this->getBuyingPower() < labs(o.qty*price))
+        this->setOrderStatus(o, SimBroker::OrderStatus::REJECTED, this->clock);
     } else {
       // Long order
-      o.status = SimBroker::OrderStatus::OPEN;
+      this->setOrderStatus(o,SimBroker::OrderStatus::OPEN, this->clock);
     }
   } else {
     // Order quantity of zero is not valid
-    o.status = SimBroker::OrderStatus::REJECTED;
+    this->setOrderStatus(o, SimBroker::OrderStatus::REJECTED, this->clock);
   }
 
   orders.push_back(o);
@@ -165,55 +171,64 @@ double SimBroker::estimateFillRate(SimBrokerStockDataSource::Bar b) {
 }
 
 void SimBroker::updateOrderFillState(Order& o) {
-  if (o.filledQty == o.qty || o.status != SimBroker::OrderStatus::OPEN ||
-      o.qty == 0) return; // Nothing to do in these situations
+  if (o.filledQty == o.qty || o.qty == 0) return; // Nothing to do in these situations
 
   int64_t startQty = o.filledQty;
   uint64_t filledSeconds = 0;
   double avgPrice = 0.0;
   int64_t filledShares = 0;
 
-  this->eachBar(o.symbol, o.createdAt-60, [&filledSeconds, &avgPrice, &o, this, &filledShares](auto bar) {
-    if (bar.time+60 < o.createdAt) return true;
-    if (bar.time > this->clock) return false;
-    if (o.type == OrderType::LIMIT && ((o.qty > 0 && bar.openPrice > o.limitPrice) || 
-                                       (o.qty < 0 && bar.openPrice < o.limitPrice))) return false;
+  int i = 0;
+  for (auto hist : o.orderStatusHistory) {
+    if (hist.status != OrderStatus::OPEN) continue;
+    uint64_t nextStatus = 0;
+    if (o.orderStatusHistory.size() > i+1) nextStatus = o.orderStatusHistory.at(i+1).time;
 
-    uint64_t relevantStart = bar.time;
-    uint64_t relevantEnd = bar.time+60;
+    this->eachBar(o.symbol, o.createdAt-60, [&filledSeconds, &avgPrice, &o, this, &filledShares, &nextStatus](auto bar) {
+      if (nextStatus > 0 && bar.time > nextStatus) return false;
+      if (bar.time+60 < o.createdAt) return true;
+      if (bar.time > this->clock) return false;
+      if (o.type == OrderType::LIMIT && ((o.qty > 0 && bar.openPrice > o.limitPrice) || 
+                                         (o.qty < 0 && bar.openPrice < o.limitPrice))) return false;
 
-    bool back = false;
-    for (uint64_t i = relevantStart; i < relevantEnd; i++) {
-      bool relevantSecond = false;
-      auto phase = this->stockDataSource->getMarketPhase(i);
-      if (phase == SimBrokerStockDataSource::MarketPhase::OPEN) relevantSecond = true;
-      if (phase == SimBrokerStockDataSource::MarketPhase::PREMARKET &&
-          o.extendedHours == true) relevantSecond = true;
-      if (phase == SimBrokerStockDataSource::MarketPhase::POSTMARKET &&
-          o.extendedHours == true) relevantSecond = true;
-      if (phase == SimBrokerStockDataSource::MarketPhase::CLOSED) relevantSecond = false;
+      uint64_t relevantStart = bar.time;
+      uint64_t relevantEnd = bar.time+60;
 
-      if (!relevantSecond && !back) relevantStart++;
-      if (!relevantSecond && back) relevantEnd--;
-      if (relevantSecond) back = true;
-    }
+      bool back = false;
+      for (uint64_t i = relevantStart; i < relevantEnd; i++) {
+        bool relevantSecond = false;
+        auto phase = this->stockDataSource->getMarketPhase(i);
+        if (phase == SimBrokerStockDataSource::MarketPhase::OPEN) relevantSecond = true;
+        if (phase == SimBrokerStockDataSource::MarketPhase::PREMARKET &&
+            o.extendedHours == true) relevantSecond = true;
+        if (phase == SimBrokerStockDataSource::MarketPhase::POSTMARKET &&
+            o.extendedHours == true) relevantSecond = true;
+        if (phase == SimBrokerStockDataSource::MarketPhase::CLOSED) relevantSecond = false;
 
-    if (o.createdAt > relevantStart) relevantStart += o.createdAt-bar.time; 
-    if (this->clock < relevantEnd) relevantEnd -= (bar.time+60)-this->clock;
+        if (!relevantSecond && !back) relevantStart++;
+        if (!relevantSecond && back) relevantEnd--;
+        if (relevantSecond) back = true;
+      }
 
-    int64_t relevantSeconds = relevantEnd-relevantStart;
-    if (relevantSeconds < 0)  relevantSeconds = 0;
+      if (o.createdAt > relevantStart) relevantStart += o.createdAt-bar.time; 
+      if (this->clock < relevantEnd) relevantEnd -= (bar.time+60)-this->clock;
 
-    if (relevantSeconds > 0) {
-      filledSeconds += relevantSeconds;
-      avgPrice += bar.openPrice*relevantSeconds;
-      filledShares += (estimateFillRate(bar)*relevantSeconds);
-    }
+      int64_t relevantSeconds = relevantEnd-relevantStart;
+      if (relevantSeconds < 0)  relevantSeconds = 0;
 
-    if (filledShares >= llabs(o.qty)) return false;
+      if (relevantSeconds > 0) {
+        filledSeconds += relevantSeconds;
+        avgPrice += bar.openPrice*relevantSeconds;
+        filledShares += (estimateFillRate(bar)*relevantSeconds);
+      }
 
-    return true;
-  });
+      if (filledShares >= llabs(o.qty)) return false;
+
+      return true;
+    });
+
+    i++;
+  }
 
   avgPrice /= filledSeconds;
   if (filledShares > llabs(o.qty)) filledShares = llabs(o.qty);
@@ -244,7 +259,9 @@ void SimBroker::updateOrderTIF(Order& o) {
       expires = this->stockDataSource
         ->getNextMarketPhaseChangeFrom(o.createdAt, SimBrokerStockDataSource::MarketPhase::OPEN).time;
     }
-    if (this->clock >= expires && o.status == OrderStatus::OPEN) o.status = OrderStatus::EXPIRED;
+
+    if (this->clock >= expires && o.status == OrderStatus::OPEN)
+      this->setOrderStatus(o, OrderStatus::EXPIRED, expires);
   }
 }
 
@@ -290,7 +307,7 @@ double SimBroker::getEquity() {
 }
 
 void SimBroker::cancelOrder(uint64_t oid) { 
-  for (auto& o : this->orders) { if (o.id == oid) { o.status = OrderStatus::CANCELLED; return; } }
+  for (auto& o : this->orders) { if (o.id == oid) { setOrderStatus(o, OrderStatus::CANCELLED, this->clock); return; } }
   throw std::logic_error("Invalid order ID");
 }
 
@@ -378,6 +395,15 @@ void SimBroker::addToPosition(std::string symbol, int64_t qty, double avgPrice) 
     if (p.qty == 0) this->positions.erase(this->positions.begin() + i);
     i++;
   }
+}
+
+void SimBroker::setOrderStatus(Order& o, OrderStatus s, uint64_t time) {
+  o.status = s;
+  o.orderStatusHistory.push_back({s, time});
+
+  std::sort(o.orderStatusHistory.begin(), o.orderStatusHistory.end(), [](const auto& a, const auto& b) -> bool {
+    return a.time < b.time;  
+  });
 }
 
 void SimBroker::enableShortRoundLotFee() { this->shortRoundLotFee = true; }
