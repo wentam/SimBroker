@@ -215,7 +215,7 @@ class TestSimBrokerStockDataSource : SimBrokerStockDataSource {
       return 0.0;
     }
 
-    double getAssetBorrowRate(std::string ticker, uint64_t time) { return 0.03; }
+    double getAssetBorrowRate([[maybe_unused]]std::string ticker, [[maybe_unused]]uint64_t time) { return 0.03; }
 
     MarketPhase getMarketPhase(uint64_t time) {
       for (auto cal : calendar) {
@@ -336,7 +336,7 @@ class AlwaysBarsSource : SimBrokerStockDataSource {
     return p;
   }
 
-  double getAssetBorrowRate(std::string ticker, uint64_t time) { return 0.03; }
+  double getAssetBorrowRate([[maybe_unused]]std::string ticker, [[maybe_unused]]uint64_t time) { return 0.03; }
 
   MarketPhase getMarketPhase(uint64_t time) {
     return mSource.getMarketPhase(time);
@@ -1528,7 +1528,7 @@ int main() {
     sellp.type = SimBroker::OrderType::LIMIT;
     sellp.limitPrice = 800;
 
-    auto oid = simBroker.placeOrder(sellp);
+    simBroker.placeOrder(sellp);
     simBroker.updateClock(simBroker.getClock()+3600);
 
     double bp2 = simBroker.getBuyingPower();
@@ -2249,7 +2249,7 @@ int main() {
     SimBroker::OrderPlan p = {};
     p.symbol = "SPY";
     p.qty = -10;
-    auto oid = simBroker.placeOrder(p);
+    simBroker.placeOrder(p);
     simBroker.updateClock(simBroker.getClock()+3600);
     double bp2 = simBroker.getBuyingPower();
  
@@ -2287,7 +2287,7 @@ int main() {
     SimBroker::OrderPlan p = {};
     p.symbol = "SPY";
     p.qty = -10;
-    auto oid = simBroker.placeOrder(p);
+    simBroker.placeOrder(p);
     simBroker.updateClock(simBroker.getClock()+(3600*2));
     double equity2 = simBroker.getEquity();
 
@@ -2534,7 +2534,7 @@ int main() {
     auto oid = simBroker.placeOrder(p);
     simBroker.updateClock(1611844200+(3600*2));
     auto o = simBroker.getOrder(oid);
-    double price = mSource.getPrice("GME", simBroker.getClock());
+    //double price = mSource.getPrice("GME", simBroker.getClock());
 
     //printf("%lf %ld %lf status: %d\n", price, o.filledQty, o.filledAvgPrice, o.status);
 
