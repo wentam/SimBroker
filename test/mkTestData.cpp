@@ -56,8 +56,8 @@ int main() {
 
   const uint64_t end   = 1646700737;
   const uint64_t start = end-((24*3600)*30);
-  const uint64_t GMEend   = 1614042804;
-  const uint64_t GMEstart = GMEend-((24*3600)*30);
+  const uint64_t GMEend   = 1614215604;
+  const uint64_t GMEstart = GMEend-((24*3600)*50);
 
 
   sdc::MarketDataAlpacaApiClient alpaca(alpacaKey,alpacaSecret,true);

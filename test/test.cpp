@@ -81,7 +81,13 @@ class TestSimBrokerStockDataSource : SimBrokerStockDataSource {
       uint64_t start = std::stoll(startStr.c_str());
       uint64_t end = std::stoll(endStr.c_str());
 
-      calendar.push_back(std::pair(start, end));
+      // Is this a duplicate entry?
+      bool dupe = false;
+      for (auto d : calendar) {
+        if (d.first == start && d.second == end) { dupe = true; break; }
+      }
+
+      if (!dupe) calendar.push_back(std::pair(start, end));
     };
 
     void addTestDataLine(std::string line) {
@@ -153,6 +159,11 @@ class TestSimBrokerStockDataSource : SimBrokerStockDataSource {
       FILE* fcal = fopen("test/data/calendar.testdata","r");
       this->readLines(f, [this](std::string line) { this->addCalTestDataLine(line); });
       fclose(fcal);
+
+      // Make sure calendar is in order
+      std::sort(this->calendar.begin(), this->calendar.end(), [](const auto& a, const auto& b) -> bool {
+        return a.first < b.first; 
+      });
     }
 
   public:
@@ -537,6 +548,23 @@ int main() {
     auto order = simBroker.getOrder(oid);
     return (order.filledQty == 5);
   }, "Market buy orders fill");
+
+  test([&mSource]() {
+    SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 50, false);
+    simBroker.addFunds(500000);
+    simBroker.updateClock(1645108739);
+
+    SimBroker::OrderPlan marketp = {};
+    marketp.symbol = "SPY";
+    marketp.qty = 5;
+    marketp.type = SimBroker::OrderType::MARKET;
+    marketp.timeInForce = SimBroker::OrderTimeInForce::DAY;
+    auto oid = simBroker.placeOrder(marketp); 
+    simBroker.updateClock(1646404200+3600);
+    
+    auto order = simBroker.getOrder(oid);
+    return (order.filledQty == 5);
+  }, "Market buy orders fill even if we jump immediately beyond it's expiry");
 
 
   test([&mSource]() {
@@ -2385,7 +2413,6 @@ int main() {
     simBroker.addFunds(9000000);
     simBroker.disableShortRoundLotFee();
 
-    // Sell 20 shares
     SimBroker::OrderPlan p = {};
     p.symbol = "SPY";
     p.qty = -5;
@@ -2407,7 +2434,6 @@ int main() {
     simBroker.addFunds(9000000);
     simBroker.enableShortRoundLotFee();
 
-    // Sell 20 shares
     SimBroker::OrderPlan p = {};
     p.symbol = "SPY";
     p.qty = -5;
@@ -2430,7 +2456,6 @@ int main() {
     simBroker.addFunds(9000000);
     simBroker.enableShortRoundLotFee();
 
-    // Sell 20 shares
     SimBroker::OrderPlan p = {};
     p.symbol = "SPY";
     p.qty = -100;
@@ -2454,7 +2479,6 @@ int main() {
     simBroker.addFunds(9000000);
     simBroker.enableShortRoundLotFee();
 
-    // Sell 20 shares
     SimBroker::OrderPlan p = {};
     p.symbol = "SPY";
     p.qty = -110;
@@ -2484,7 +2508,6 @@ int main() {
     simBroker.addFunds(9000000);
     simBroker.disableShortRoundLotFee();
 
-    // Sell 20 shares
     SimBroker::OrderPlan p = {};
     p.symbol = "SPY";
     p.type = SimBroker::OrderType::LIMIT;
@@ -2494,6 +2517,29 @@ int main() {
     simBroker.updateClock(simBroker.getClock()+(3600*10)); // Couple hours after postmarket 
     return simBroker.getEquity() == 9000000;
   }, "Unfilled short orders do not result in interest charged");
+
+  test([&mSource, &neverShortableSource]() {
+    SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1610053200-(4*3600), true); // 4 hours before market close on jan 7
+    simBroker.addFunds(200);
+
+    bool marginCalled = false; 
+    simBroker.setMarginCallHandler([&marginCalled](){
+      marginCalled = true; 
+    });
+
+    // Short 5 shares of GME
+    SimBroker::OrderPlan p = {};
+    p.symbol = "GME";
+    p.qty = -5;
+    auto oid = simBroker.placeOrder(p);
+    simBroker.updateClock(1611844200+(3600*2));
+    auto o = simBroker.getOrder(oid);
+    double price = mSource.getPrice("GME", simBroker.getClock());
+
+    //printf("%lf %ld %lf\n", price, o.filledQty, o.filledAvgPrice);
+
+    return marginCalled;
+  }, "If the price rises enough while we are holding a short position, we get margin called");
 
   // TODO: test that unfilled short orders cost us the correct borrow fee daily
   // TODO: round trip short trades equity/balance/buying power
