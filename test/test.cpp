@@ -2569,6 +2569,8 @@ int main() {
 
   // TODO: test long position margin calls in the same precise way we're testing short position margin calls
 
+  // TODO: test combinations of long and short positions on margin for both margin calls and interest rate
+
   // TODO: round trip short trades equity/balance/buying power
 
   // TODO: test that margin interest is charged on weekend days too (it should be!)
