@@ -2520,7 +2520,8 @@ int main() {
 
   test([&mSource, &neverShortableSource]() {
     SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1610053200-(4*3600), true); // 4 hours before market close on jan 7
-    simBroker.addFunds(200);
+    simBroker.addFunds(46.426);
+    simBroker.disableShortRoundLotFee();
 
     bool marginCalled = false; 
     simBroker.setMarginCallHandler([&marginCalled](){
@@ -2532,18 +2533,43 @@ int main() {
     p.symbol = "GME";
     p.qty = -5;
     auto oid = simBroker.placeOrder(p);
-    simBroker.updateClock(1611844200+(3600*2));
+    simBroker.updateClock(1610461800+(3600*24.5));
     auto o = simBroker.getOrder(oid);
-    //double price = mSource.getPrice("GME", simBroker.getClock());
+    double price = mSource.getPrice("GME", simBroker.getClock());
 
-    //printf("%lf %ld %lf status: %d\n", price, o.filledQty, o.filledAvgPrice, o.status);
+    //printf("%lf %ld %lf\n", price, o.filledQty, o.filledAvgPrice);
 
     return marginCalled;
-  }, "If the price rises enough while we are holding a short position, we get margin called");
+  }, "If the price rises just enough while we are holding a short position, we get margin called");
 
-  // TODO: test that unfilled short orders cost us the correct borrow fee daily
+  test([&mSource, &neverShortableSource]() {
+    SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1610053200-(4*3600), true); // 4 hours before market close on jan 7
+    simBroker.addFunds(46.426);
+    simBroker.disableShortRoundLotFee();
+
+    bool marginCalled = false; 
+    simBroker.setMarginCallHandler([&marginCalled](){
+      marginCalled = true; 
+    });
+
+    // Short 5 shares of GME
+    SimBroker::OrderPlan p = {};
+    p.symbol = "GME";
+    p.qty = -5;
+    auto oid = simBroker.placeOrder(p);
+    simBroker.updateClock(1610375400+(3600*2));
+    auto o = simBroker.getOrder(oid);
+    double price = mSource.getPrice("GME", simBroker.getClock());
+
+    //printf("%lf %ld %lf\n", price, o.filledQty, o.filledAvgPrice);
+
+    return !marginCalled;
+  }, "If the price doesn't rise enough while we are holding a short position, we don't get margin called");
+
+
+  // TODO: test long position margin calls in the same precise way we're testing short position margin calls
+
   // TODO: round trip short trades equity/balance/buying power
-  // TODO: short position margin calls
   // TODO: test that exception is thrown on a margin call if no handler is defined
 
   // TODO: test that margin interest is charged on weekend days too (it should be!)
@@ -2585,6 +2611,8 @@ int main() {
   // TODO: test get getOrder with invalid ID throws exception
   // TODO: test that expired/cancelled orders do not continue to fill
   // TODO: tests that compare with real-world behavior on brokerage, such as buying power over time after shorting a stock
+  // TODO: tentativeUpdateClock (wouldn't work if we have a margin call handler set)
+
 
   // Longer term tasks:
   // TODO: test orders quantities near int64_t max

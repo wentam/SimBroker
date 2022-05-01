@@ -154,9 +154,27 @@ class SimBroker {
     void setInterestRate(double rate);
     double getInterestRate();
 
-    // If no handler is defined, we will throw an exception on a margin call instead
-    // TODO: do we even need this? exceptions can already be handled....
+    // Note: this requires us to obtain the value of all of our positions via the data source
+    // for every updateClock() call while we have any kind of loan.
+    //
+    // This can make it resource expensive to use this handler
+    //
+    // Also note that this only checks against the current clock - so if you make a large updateClock 
+    // and skip over an event that would have caused a margin call, you might not get called.
+    // (though it will be checked at least once per night after market closed, even with large jumps)
     void setMarginCallHandler(std::function<void()> func);
+
+    // Returns true if the current state (checked only at the current clock!) would result
+    // in a margin call
+    //
+    // Will obtain the value of all of our positions via the stock data source, so be aware of any 
+    // API time costs.
+    //
+    // Using this function instead of the setMarginCallHandler callback can allow you better control
+    // over the resource costs of your data source.
+    bool checkForMarginCall();
+
+    double getLoan();
 
     void enableShortRoundLotFee();
     void disableShortRoundLotFee();

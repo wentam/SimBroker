@@ -281,14 +281,35 @@ void SimBroker::updateState() {
   }
 
   // Send margin call if necessary
-  if (this->marginEnabled && this->marginCallHandlerDefined && this->balance < 0) {
-    double equity = this->getEquity();
-    double assets = equity-this->balance;
-    double minVal = (-this->balance)/(1-this->maintenanceMarginRequirement);
-    if (assets < minVal) {
-      this->marginCallHandler();
-    }
+  if (this->marginEnabled && this->marginCallHandlerDefined) {
+    if (this->checkForMarginCall()) this->marginCallHandler();
   }
+}
+
+double SimBroker::getLoan() { 
+  if (!this->marginEnabled) return 0;
+  double loan = 0;
+
+  double shortPositionSaleValue = 0.0; 
+  for (auto p : this->getPositions()) {
+    if (p.qty < 0) shortPositionSaleValue -= p.avgEntryPrice*p.qty;
+  }
+
+  double marginLoan = -(this->balance-shortPositionSaleValue);
+  if (marginLoan < 0) marginLoan = 0;
+  loan += marginLoan;
+
+  for (auto p : this->getPositions()) {
+    if (p.qty < 0) loan += (this->stockDataSource->getPrice(p.symbol, this->clock)*labs(p.qty));
+  }
+
+  return loan;
+}
+
+bool SimBroker::checkForMarginCall() {
+  double loan = this->getLoan();
+  if (!this->marginEnabled || loan <= 0) return false;
+  return this->getEquity()/loan < this->maintenanceMarginRequirement;
 }
 
 double SimBroker::getBalance() {
