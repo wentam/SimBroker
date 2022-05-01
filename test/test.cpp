@@ -2535,7 +2535,7 @@ int main() {
     auto oid = simBroker.placeOrder(p);
     simBroker.updateClock(1610461800+(3600*24.5));
     auto o = simBroker.getOrder(oid);
-    double price = mSource.getPrice("GME", simBroker.getClock());
+    //double price = mSource.getPrice("GME", simBroker.getClock());
 
     //printf("%lf %ld %lf\n", price, o.filledQty, o.filledAvgPrice);
 
@@ -2559,7 +2559,7 @@ int main() {
     auto oid = simBroker.placeOrder(p);
     simBroker.updateClock(1610375400+(3600*2));
     auto o = simBroker.getOrder(oid);
-    double price = mSource.getPrice("GME", simBroker.getClock());
+    //double price = mSource.getPrice("GME", simBroker.getClock());
 
     //printf("%lf %ld %lf\n", price, o.filledQty, o.filledAvgPrice);
 
@@ -2570,7 +2570,6 @@ int main() {
   // TODO: test long position margin calls in the same precise way we're testing short position margin calls
 
   // TODO: round trip short trades equity/balance/buying power
-  // TODO: test that exception is thrown on a margin call if no handler is defined
 
   // TODO: test that margin interest is charged on weekend days too (it should be!)
   // TODO: test that short borrow fees are charged on weekend days too (it should be!)
@@ -2612,7 +2611,6 @@ int main() {
   // TODO: test that expired/cancelled orders do not continue to fill
   // TODO: tests that compare with real-world behavior on brokerage, such as buying power over time after shorting a stock
   // TODO: tentativeUpdateClock (wouldn't work if we have a margin call handler set)
-
 
   // Longer term tasks:
   // TODO: test orders quantities near int64_t max

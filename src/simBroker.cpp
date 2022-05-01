@@ -16,9 +16,15 @@ SimBroker::SimBroker(SimBrokerStockDataSource* dataSource, uint64_t startTime, b
 {};
 
 void SimBroker::chargeDayInterest() {
-  // Charge interest on margin usage
-  if (this->balance < 0) {
-    double interest = (fabs(this->balance)*this->interestRate)/360;
+  // Charge interest on margin usage 
+  double shortPositionSaleValue = 0.0; 
+  for (auto p : this->getPositions()) {
+    if (p.qty < 0) shortPositionSaleValue -= p.avgEntryPrice*p.qty;
+  }
+
+  double cash = this->balance-shortPositionSaleValue;
+  if (cash < 0) {
+    double interest = (fabs(cash)*this->interestRate)/360;
     this->balance -= interest;
   }
 
@@ -178,7 +184,7 @@ void SimBroker::updateOrderFillState(Order& o) {
   double avgPrice = 0.0;
   int64_t filledShares = 0;
 
-  int i = 0;
+  uint32_t i = 0;
   for (auto hist : o.orderStatusHistory) {
     if (hist.status != OrderStatus::OPEN) continue;
     uint64_t nextStatus = 0;
