@@ -16,10 +16,23 @@ SimBroker::SimBroker(SimBrokerStockDataSource* dataSource, uint64_t startTime, b
 {};
 
 void SimBroker::chargeDayInterest() {
+  // Charge interest on margin usage
   if (this->balance < 0) {
     double interest = (fabs(this->balance)*this->interestRate)/360;
     this->balance -= interest;
   }
+
+  // Charge short position borrow fees
+  for (auto pos : this->getPositions()) {
+    if (pos.qty < 0) {
+      double price = this->stockDataSource->getPrice(pos.symbol, this->clock);
+      uint64_t qty = labs(pos.qty);
+      if (this->shortRoundLotFee) qty = (((qty-1)/100)*100)+100;
+
+      this->balance -= ((price*qty)*this->stockDataSource->getAssetBorrowRate(pos.symbol, this->clock))/360;
+    }
+  }
+
   this->lastInterestTime = this->clock;
 }
 
@@ -367,6 +380,9 @@ void SimBroker::addToPosition(std::string symbol, int64_t qty, double avgPrice) 
   }
 }
 
+void SimBroker::enableShortRoundLotFee() { this->shortRoundLotFee = true; }
+void SimBroker::disableShortRoundLotFee() { this->shortRoundLotFee = false; }
+bool SimBroker::shortRoundLotFeeEnabled() { return this->shortRoundLotFee; }
 uint64_t SimBroker::getClock() { return this->clock; }
 void SimBroker::addFunds(double chedda) { this->balance += chedda; }
 void SimBroker::rmFunds(double chedda) { this->balance -= chedda; }

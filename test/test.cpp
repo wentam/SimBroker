@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <functional>
 #include <map>
+#include <cmath>
 
 // ANSI colors
 #define BLK "\x1B[0;30m"
@@ -30,6 +31,11 @@
 
 uint64_t pass = 0;
 uint64_t fail = 0;
+
+double dround( double f, int places ) {
+    double n = std::pow(10.0, places);
+    return std::round(f*n)/n;
+}
 
 bool assert(std::string msg, bool condition) {
   if (condition) {
@@ -198,6 +204,8 @@ class TestSimBrokerStockDataSource : SimBrokerStockDataSource {
       return 0.0;
     }
 
+    double getAssetBorrowRate(std::string ticker, uint64_t time) { return 0.03; }
+
     MarketPhase getMarketPhase(uint64_t time) {
       for (auto cal : calendar) {
         if (time >= cal.first && time <= cal.second) return MarketPhase::OPEN;
@@ -316,6 +324,8 @@ class AlwaysBarsSource : SimBrokerStockDataSource {
     if (p == 0.0) return 440;
     return p;
   }
+
+  double getAssetBorrowRate(std::string ticker, uint64_t time) { return 0.03; }
 
   MarketPhase getMarketPhase(uint64_t time) {
     return mSource.getMarketPhase(time);
@@ -2370,13 +2380,134 @@ int main() {
     return o1.status == SimBroker::OrderStatus::REJECTED;
   }, "If a short order that exceeds our available buying power is submitted, the order is rejected");
 
+  test([&mSource, &neverShortableSource]() {
+    SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1645650000-(4*3600), true); // 4 hours before market close
+    simBroker.addFunds(9000000);
+    simBroker.disableShortRoundLotFee();
+
+    // Sell 20 shares
+    SimBroker::OrderPlan p = {};
+    p.symbol = "SPY";
+    p.qty = -5;
+    auto oid = simBroker.placeOrder(p);
+    simBroker.updateClock(simBroker.getClock()+(3600));
+    double filledPrice = simBroker.getOrder(oid).filledAvgPrice;
+
+    simBroker.updateClock(simBroker.getClock()+(3600*9)); // Couple hours after postmarket
+    double price = mSource.getPrice("SPY", simBroker.getClock());
+    double interestOwed = ((price*5)*mSource.getAssetBorrowRate("SPY", simBroker.getClock()))/360;
+    double equityShouldBe = (9000000.0+((filledPrice-price)*5.0))-interestOwed;
+ 
+   // printf("%lf->%lf\n", filledPrice, price);
+    return dround(simBroker.getEquity(),5) == dround(equityShouldBe,5);
+  }, "Filled short orders with round lot fee disabled result in the correct interest being charged");
+
+  test([&mSource, &neverShortableSource]() {
+    SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1645650000-(4*3600), true); // 4 hours before market close
+    simBroker.addFunds(9000000);
+    simBroker.enableShortRoundLotFee();
+
+    // Sell 20 shares
+    SimBroker::OrderPlan p = {};
+    p.symbol = "SPY";
+    p.qty = -5;
+    auto oid = simBroker.placeOrder(p);
+    simBroker.updateClock(simBroker.getClock()+(3600));
+    double filledPrice = simBroker.getOrder(oid).filledAvgPrice;
+
+    simBroker.updateClock(simBroker.getClock()+(3600*9)); // Couple hours after postmarket
+    double price = mSource.getPrice("SPY", simBroker.getClock());
+    double interestOwed = ((price*100)*mSource.getAssetBorrowRate("SPY", simBroker.getClock()))/360;
+    double equityShouldBe = (9000000.0+((filledPrice-price)*5.0))-interestOwed;
+ 
+    //printf("%lf->%lf\n", filledPrice, price);
+    //printf("%lf == %lf\n", simBroker.getEquity(), equityShouldBe);
+    return dround(simBroker.getEquity(),5) == dround(equityShouldBe,5);
+  }, "Filled short orders of qty 5 with round lot fee enabled result in the correct (qty of 100) interest being charged");
+
+  test([&mSource, &neverShortableSource]() {
+    SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1645650000-(4*3600), true); // 4 hours before market close
+    simBroker.addFunds(9000000);
+    simBroker.enableShortRoundLotFee();
+
+    // Sell 20 shares
+    SimBroker::OrderPlan p = {};
+    p.symbol = "SPY";
+    p.qty = -100;
+    auto oid = simBroker.placeOrder(p);
+    simBroker.updateClock(simBroker.getClock()+(3600));
+    double filledPrice = simBroker.getOrder(oid).filledAvgPrice;
+
+    simBroker.updateClock(simBroker.getClock()+(3600*9)); // Couple hours after postmarket
+    double price = mSource.getPrice("SPY", simBroker.getClock());
+    double interestOwed = ((price*100)*mSource.getAssetBorrowRate("SPY", simBroker.getClock()))/360;
+    double equityShouldBe = (9000000.0+((filledPrice-price)*100.0))-interestOwed;
+ 
+    //printf("%lf->%lf\n", filledPrice, price);
+    //printf("%lf == %lf\n", simBroker.getEquity(), equityShouldBe);
+    return dround(simBroker.getEquity(),5) == dround(equityShouldBe,5);
+    return simBroker.getEquity() == equityShouldBe;
+  }, "Filled short orders of qty 100 with round lot fee enabled result in the correct (qty of 100) interest being charged");
+
+  test([&mSource, &neverShortableSource]() {
+    SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1645650000-(4*3600), true); // 4 hours before market close
+    simBroker.addFunds(9000000);
+    simBroker.enableShortRoundLotFee();
+
+    // Sell 20 shares
+    SimBroker::OrderPlan p = {};
+    p.symbol = "SPY";
+    p.qty = -110;
+    auto oid = simBroker.placeOrder(p);
+    simBroker.updateClock(simBroker.getClock()+(3600));
+    double filledPrice = simBroker.getOrder(oid).filledAvgPrice;
+
+    simBroker.updateClock(simBroker.getClock()+(3600*9)); // Couple hours after postmarket
+    double price = mSource.getPrice("SPY", simBroker.getClock());
+    double interestOwed = ((price*200)*mSource.getAssetBorrowRate("SPY", simBroker.getClock()))/360;
+    //printf("%lf\n", interestOwed);
+    double equityShouldBe = (9000000.0+((filledPrice-price)*110))-interestOwed;
+ 
+    //printf("%lf->%lf\n", filledPrice, price);
+    //printf("%lf == %lf\n", simBroker.getEquity(), equityShouldBe);
+    return dround(simBroker.getEquity(),5) == dround(equityShouldBe,5);
+  }, "Filled short orders of qty 110 with round lot fee enabled result in the correct (qty of 200) interest being charged");
+
+  test([&mSource, &neverShortableSource]() {
+    SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1645650000-(4*3600), true); // 4 hours before market close
+    simBroker.addFunds(9000000);
+    return simBroker.shortRoundLotFeeEnabled();
+  }, "Shorting round lot fee based interest rates are enabled by default");
+
+  test([&mSource, &neverShortableSource]() {
+    SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1645650000-(4*3600), true); // 4 hours before market close
+    simBroker.addFunds(9000000);
+    simBroker.disableShortRoundLotFee();
+
+    // Sell 20 shares
+    SimBroker::OrderPlan p = {};
+    p.symbol = "SPY";
+    p.type = SimBroker::OrderType::LIMIT;
+    p.limitPrice = 900;
+    p.qty = -5;
+    simBroker.placeOrder(p);
+    simBroker.updateClock(simBroker.getClock()+(3600*10)); // Couple hours after postmarket 
+    return simBroker.getEquity() == 9000000;
+  }, "Unfilled short orders do not result in interest charged");
+
   // TODO: test that unfilled short orders cost us the correct borrow fee daily
-  // TODO: test that short orders that are too large are rejected (how large is too large?)
   // TODO: round trip short trades equity/balance/buying power
-  // TODO: interest
-  // borrow fee/interest is based on lots of 100?
   // TODO: short position margin calls
   // TODO: test that exception is thrown on a margin call if no handler is defined
+
+  // TODO: test that margin interest is charged on weekend days too (it should be!)
+  // TODO: test that short borrow fees are charged on weekend days too (it should be!)
+
+  // TODO: accrue daily but charge borrow fee only at end of month like alpaca?
+  
+  // TODO: use dround instead of < and > for float comparisons in these tests
+
+  // TODO: submitting a limit order without a limit price should throw an exception
 
   // Shorting test
   //
@@ -2400,14 +2531,10 @@ int main() {
   // while without extended hours expires right at market close
 
   // TODO: test that purchasing stocks that increase in value increases equity (and inverse)
-  // TODO: test that shorting stocks that decrease in value increases equity (and inverse)
   // TODO: Test that multiple calls to addToPosition with the same position still does the correct thing
   // TODO: test that orders never overfill
   // TODO: test get getOrder with invalid ID throws exception
   // TODO: test that expired/cancelled orders do not continue to fill
-  //
-  // TODO: test that limit orders have the correct effect on buying power in both buy and sell situations
-
   // TODO: tests that compare with real-world behavior on brokerage, such as buying power over time after shorting a stock
 
   // Longer term tasks:

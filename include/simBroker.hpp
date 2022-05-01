@@ -43,6 +43,8 @@ class SimBrokerStockDataSource {
     // Need to look into this in more detail.
     virtual double getPrice(std::string ticker, uint64_t time) = 0;        // Return < 0 if price is not available
 
+    virtual double getAssetBorrowRate(std::string ticker, uint64_t time) = 0;
+
     virtual MarketPhase getMarketPhase(uint64_t time) = 0;                 // Throw exception if data not available
     virtual MarketPhaseChange getNextMarketPhaseChange(uint64_t time) = 0; // Throw exception if data not available
     virtual MarketPhaseChange getPrevMarketPhaseChange(uint64_t time) = 0; // Throw exception if data not available
@@ -130,7 +132,6 @@ class SimBroker {
     Order getOrder(uint64_t id);
     std::vector<Order> getOrders();
     std::vector<Position> getPositions();
-    double getPositionValue(Position p);
     double getBalance();
     double getEquity();
     double getBuyingPower();
@@ -150,7 +151,9 @@ class SimBroker {
     // TODO: do we even need this? exceptions can already be handled....
     void setMarginCallHandler(std::function<void()> func);
 
-
+    void enableShortRoundLotFee();
+    void disableShortRoundLotFee();
+    bool shortRoundLotFeeEnabled();
   private:
     void updateState();
     void chargeDayInterest();
@@ -170,6 +173,7 @@ class SimBroker {
     std::vector<Order>    orders;
     std::vector<Position> positions;
     bool marginEnabled = false;
+    bool shortRoundLotFee = true;
     double initialMarginRequirement = 0.5;
     double maintenanceMarginRequirement = 0.35;
     bool marginCallHandlerDefined = false;
