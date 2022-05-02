@@ -17,7 +17,7 @@ LIBDEPS = $(LIBOBJS:%.o=%.d)
 #$(info -----------------------------------------------)
 
 .PHONY: default
-default: build/simBroker.so
+default: build/libsimbroker.so
 
 .PHONY: test
 test: build/test
@@ -30,8 +30,8 @@ mkTestData: build/mkTestData
 build/:
 	mkdir -p build
 
-build/simBroker.so: build/ $(LIBOBJS)
-	$(CXX) $(INCLUDE) $(LIBINCLUDE) -shared -o build/simBroker.so $(LIBOBJS)
+build/libsimbroker.so: build/ $(LIBOBJS)
+	$(CXX) $(INCLUDE) $(LIBINCLUDE) -shared -o build/libsimbroker.so $(LIBOBJS)
 
 -include $(LIBDEPS)
 
@@ -39,8 +39,8 @@ build/%.o: src/%.cpp
 	mkdir -p $(@D)
 	$(CXX) -fPIC -MMD -c $(INCLUDE) $(LIBINCLUDE) $< -o $@
 
-build/test: test/test.cpp build/simBroker.so
-	$(CXX) $(INCLUDE) test/test.cpp -o build/test build/simBroker.so
+build/test: test/test.cpp build/libsimbroker.so
+	$(CXX) $(INCLUDE) test/test.cpp -o build/test build/libsimbroker.so
 
 build/mkTestData: test/mkTestData.cpp
 	$(CXX) $(INCLUDE) test/mkTestData.cpp -o build/mkTestData -lalpacaclient -lpqxx -lssl -lcrypto
