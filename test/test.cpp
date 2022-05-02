@@ -2612,11 +2612,11 @@ int main() {
   // TODO: test get getOrder with invalid ID throws exception
   // TODO: test that expired/cancelled orders do not continue to fill
   // TODO: tests that compare with real-world behavior on brokerage, such as buying power over time after shorting a stock
-  // TODO: tentativeUpdateClock (wouldn't work if we have a margin call handler set)
 
   // Longer term tasks:
   // TODO: test orders quantities near int64_t max
   // TODO: test that orders near the end of our existing data partially fill, but also fully fill once the data becomes available
+  // TODO: tentativeUpdateClock? (wouldn't work if we have a margin call handler set)
 
   // Some tests with paper trading:
   // Buying power is reduced upon placing limit  order without fill
@@ -2628,6 +2628,8 @@ int main() {
   // https://alpaca.markets/docs/trading/user-protections/ - Selling short and covering the short on the same day is also considered a day trade.
 
   testResults();
+  if (fail == 0) return 0;
+  return 1;
 };
 
 
