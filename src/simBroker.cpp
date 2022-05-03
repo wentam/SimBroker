@@ -254,6 +254,8 @@ void SimBroker::updateOrderFillState(Order& o) {
 }
 
 void SimBroker::updateOrderTIF(Order& o) {
+  if (o.status != OrderStatus::OPEN) return;
+
   // if TIF is day, expires at whenever the next phase change away from open is
   // if TIF is day + o.extendedHours = true, expires whenever the next phase change to closed (after postmarket) is
   if (o.timeInForce == OrderTimeInForce::DAY) {
