@@ -5,7 +5,6 @@
 // TODO: implement order expirey
 // TODO: simulate the effect that our own investment has on the price of the stock
 // TODO: simulate slippage (related to the above, but not fully defined by it)
-// TODO: add instafill mode
 
 SimBroker::SimBroker(SimBrokerStockDataSource* dataSource, uint64_t startTime, bool margin) : 
   stockDataSource(dataSource),
@@ -225,7 +224,8 @@ void SimBroker::updateOrderFillState(Order& o) {
       if (relevantSeconds > 0) {
         filledSeconds += relevantSeconds;
         avgPrice += bar.openPrice*relevantSeconds;
-        filledShares += (estimateFillRate(bar)*relevantSeconds);
+        if (this->instaFill) filledShares = o.qty;
+        else filledShares += (estimateFillRate(bar)*relevantSeconds);
       }
 
       if (filledShares >= llabs(o.qty)) return false;
@@ -433,6 +433,11 @@ void SimBroker::setOrderStatus(Order& o, OrderStatus s, uint64_t time) {
   });
 }
 
+
+
+void SimBroker::enableInstaFill() { this->instaFill = true; }
+void SimBroker::disableInstaFill() { this->instaFill = false; }
+bool SimBroker::instaFillEnabled() { return this->instaFill; }
 void SimBroker::enableShortRoundLotFee() { this->shortRoundLotFee = true; }
 void SimBroker::disableShortRoundLotFee() { this->shortRoundLotFee = false; }
 bool SimBroker::shortRoundLotFeeEnabled() { return this->shortRoundLotFee; }

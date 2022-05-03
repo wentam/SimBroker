@@ -179,6 +179,10 @@ class SimBroker {
     void enableShortRoundLotFee();
     void disableShortRoundLotFee();
     bool shortRoundLotFeeEnabled();
+
+    void enableInstaFill();
+    void disableInstaFill();
+    bool instaFillEnabled();
   private:
     void updateState();
     void chargeDayInterest();
@@ -203,6 +207,7 @@ class SimBroker {
     std::vector<Position> positions;
     bool marginEnabled = false;
     bool shortRoundLotFee = true;
+    bool instaFill = false;
     double initialMarginRequirement = 0.5;
     double maintenanceMarginRequirement = 0.35;
     bool marginCallHandlerDefined = false;
