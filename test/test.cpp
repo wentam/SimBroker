@@ -2287,17 +2287,18 @@ int main() {
     SimBroker::OrderPlan p = {};
     p.symbol = "SPY";
     p.qty = -10;
-    simBroker.placeOrder(p);
+    auto oid = simBroker.placeOrder(p);
     simBroker.updateClock(simBroker.getClock()+(3600*2));
     double equity2 = simBroker.getEquity();
 
-    //double price1 = simBroker.getOrder(oid).filledAvgPrice;
-    //double price2 = mSource.getPrice("SPY", simBroker.getClock());
+    double price1 = simBroker.getOrder(oid).filledAvgPrice;
+    double price2 = mSource.getPrice("SPY", simBroker.getClock());
+
+    double profit = (price1-price2)*10.0;
 
     //printf("%lf->%lf\n", price1, price2);
     //printf("%lf->%lf\n", equity1, equity2);
-    return equity2 >= equity1+23.99 &&
-           equity2 <= equity1+24.01;
+    return dround(equity2, 5) == dround(equity1+profit, 5);
   }, "Shorting a stock that falls results in the correct higher equity"); 
 
   test([&mSource]() {
@@ -2308,14 +2309,18 @@ int main() {
     SimBroker::OrderPlan p = {};
     p.symbol = "SPY";
     p.qty = -10;
-    simBroker.placeOrder(p);
+    auto oid = simBroker.placeOrder(p);
     simBroker.updateClock(simBroker.getClock()+(3600*2));
     double equity2 = simBroker.getEquity();
 
+    double price1 = simBroker.getOrder(oid).filledAvgPrice;
+    double price2 = mSource.getPrice("SPY", simBroker.getClock());
+
+    double profit = (price1-price2)*10.0;
+
 //printf("%lf->%lf\n", equity1, equity2);
  //   printf("%lf->%lf\n", price1, price2);
-    return equity2 >= equity1-12.3 &&
-           equity2 <= equity1-12.1;
+    return dround(equity2, 5) == dround(equity1+profit, 5) && profit < 0;
   }, "Shorting a stock that rises results in the correct lower equity"); 
 
   test([&mSource]() {
