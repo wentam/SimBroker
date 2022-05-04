@@ -397,12 +397,12 @@ void SimBroker::addToPosition(std::string symbol, int64_t qty, double avgPrice) 
   // Try to apply this to an existing position
   bool exists = false;
   for (auto& p : this->positions) {
-    if (p.symbol == symbol) { 
+    if (p.symbol == symbol) {
       p.avgEntryPrice = ((p.qty*p.avgEntryPrice)+(qty*avgPrice))/((p.qty+qty)*1.0);
       p.costBasis = p.avgEntryPrice*p.qty;
-      p.qty += qty; 
-      exists = true; 
-      break; 
+      p.qty += qty;
+      exists = true;
+      break;
     }
   }
 

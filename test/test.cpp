@@ -2618,6 +2618,7 @@ int main() {
   // TODO: test that expired/cancelled orders do not continue to fill
   // TODO: tests that compare with real-world behavior on brokerage, such as buying power over time after shorting a stock
   // TODO: test that positions get the proper createdTime
+  // TODO: test that an order of an invalid ticker is rejected
 
   // Longer term tasks:
   // TODO: test orders quantities near int64_t max
