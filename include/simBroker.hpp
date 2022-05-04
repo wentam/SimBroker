@@ -135,6 +135,7 @@ class SimBroker {
 
     SimBroker(SimBrokerStockDataSource* dataSource, uint64_t startTime, bool margin);
     void updateClock(uint64_t time);
+    // TODO: wouldn't it make more sense to return Order? It still contains the id.
     uint64_t placeOrder(OrderPlan p);
     void cancelOrder(uint64_t orderId);
     Order getOrder(uint64_t id);
