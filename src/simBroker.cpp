@@ -414,6 +414,7 @@ void SimBroker::addToPosition(std::string symbol, int64_t qty, double avgPrice) 
     p.avgEntryPrice = avgPrice;
     p.qty = qty;
     p.costBasis = p.avgEntryPrice*p.qty;
+    p.createdTime = this->clock;
 
     this->positions.push_back(p);
   }

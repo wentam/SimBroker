@@ -92,6 +92,7 @@ class SimBroker {
       double avgEntryPrice;
       int64_t qty; // Positive value = long, negative value = short
       double costBasis;
+      uint64_t createdTime = 0;
     };
 
     struct OrderPlan {
