@@ -149,6 +149,11 @@ uint64_t SimBroker::placeOrder(OrderPlan p) {
 
   orders.push_back(o);
 
+  if (this->instaFill) {
+    this->updateState();
+    return this->getOrder(o.id).id;
+  }
+
   return o.id;
 }
 
