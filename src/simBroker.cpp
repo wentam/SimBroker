@@ -198,7 +198,9 @@ void SimBroker::updateOrderFillState(Order& o) {
       if (nextStatus > 0 && bar.time > nextStatus) return false;
       if (bar.time+60 < o.createdAt) return true;
       if (bar.time > this->clock) return false;
-      if (o.type == OrderType::LIMIT && ((o.qty > 0 && bar.openPrice > o.limitPrice) || 
+
+      // TODO: wouldn't we want to return true here?
+      if (o.type == OrderType::LIMIT && ((o.qty > 0 && bar.openPrice > o.limitPrice) ||
                                          (o.qty < 0 && bar.openPrice < o.limitPrice))) return false;
 
       uint64_t relevantStart = bar.time;
@@ -220,8 +222,8 @@ void SimBroker::updateOrderFillState(Order& o) {
         if (relevantSecond) back = true;
       }
 
-      if (o.createdAt > relevantStart) relevantStart += o.createdAt-bar.time; 
-      if (this->clock < relevantEnd) relevantEnd -= (bar.time+60)-this->clock;
+      if (o.createdAt > relevantStart && !this->instaFill) relevantStart += o.createdAt-bar.time; 
+      if (this->clock < relevantEnd && !this->instaFill) relevantEnd -= (bar.time+60)-this->clock;
 
       int64_t relevantSeconds = relevantEnd-relevantStart;
       if (relevantSeconds < 0)  relevantSeconds = 0;
