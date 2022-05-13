@@ -2623,6 +2623,7 @@ int main() {
   // TODO: test that upon placeing a limit order out-of-limit and not filling - and making a call to updateClock to a
   // point where we would have passed through an in-the-limit period - but lands on another out-of-limit period,
   // the limit order still fills
+  // TODO: test that instafill actually fills instantly without a call to updateClock
 
   // Longer term tasks:
   // TODO: test orders quantities near int64_t max

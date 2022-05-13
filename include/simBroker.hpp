@@ -186,6 +186,7 @@ class SimBroker {
     void disableInstaFill();
     bool instaFillEnabled();
   private:
+    void cleanStuckOrders();
     void updateState();
     void chargeDayInterest();
     double estimateFillRate(SimBrokerStockDataSource::Bar b);
