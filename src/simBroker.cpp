@@ -306,23 +306,11 @@ double SimBroker::getTotalCostBasis() {
   return r;
 }
 
-void SimBroker::cleanStuckOrders() { 
-  for (auto it = this->orders.begin(); it != this->orders.end(); ++it) {
-    auto o = *it;
-    if (o.filledQty < o.qty && o.type == OrderType::MARKET && o.createdAt+(3600*8) < this->clock) {
-      printf("FIXME(SimBroker): Erasing stuck market order\n");
-      this->orders.erase(it);
-    }
-  }
-}
-
 void SimBroker::updateState() {
   for (auto& o : this->orders) {
     this->updateOrderTIF(o);
     this->updateOrderFillState(o);
   }
-
-  this->cleanStuckOrders();
 
   // Send margin call if necessary
   if (this->marginEnabled && this->marginCallHandlerDefined) {
