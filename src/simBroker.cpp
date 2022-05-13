@@ -183,7 +183,7 @@ double SimBroker::estimateFillRate(SimBrokerStockDataSource::Bar b) {
 }
 
 void SimBroker::updateOrderFillState(Order& o) {
-  if (o.filledQty == o.qty || o.qty == 0 || o.burned) return; // Nothing to do in these situations
+  if (o.filledQty == o.qty || o.qty == 0 || o.doneFilling) return; // Nothing to do in these situations
 
   int64_t startQty = o.filledQty;
   uint64_t filledSeconds = 0;
@@ -196,12 +196,9 @@ void SimBroker::updateOrderFillState(Order& o) {
     uint64_t nextStatus = 0;
     if (o.orderStatusHistory.size() > i+1) nextStatus = o.orderStatusHistory.at(i+1).time;
 
-    bool exitedOnStatusEnd = false;  
-    bool gotBars = false;
 
-    this->eachBar(o.symbol, o.createdAt-60, [&filledSeconds, &avgPrice, &o, this, &filledShares, &nextStatus, &exitedOnStatusEnd, &gotBars](auto bar) {
-      gotBars = true;
-      if (nextStatus > 0 && bar.time > nextStatus) { exitedOnStatusEnd = true; return false;}
+    this->eachBar(o.symbol, o.createdAt-60, [&filledSeconds, &avgPrice, &o, this, &filledShares, &nextStatus](auto bar) {
+      if (nextStatus > 0 && bar.time > nextStatus) return false;
       if (bar.time+60 < o.createdAt) return true;
       if (bar.time > this->clock) return false;
 
@@ -247,16 +244,7 @@ void SimBroker::updateOrderFillState(Order& o) {
     });
 
 
-    // If the order is never going to fill in the open status period, 
-    // we need to make sure we're not going to check it again next tick.
-    if (exitedOnStatusEnd && o.filledQty < o.qty && hist.status == OrderStatus::OPEN) {
-      o.burned = true;
-    }
-
-    if (!gotBars && o.filledQty < o.qty && this->clock > nextStatus) {
-      o.burned = true;
-    }
-
+    if (o.status != OrderStatus::OPEN) o.doneFilling = true;
     i++;
   }
 
