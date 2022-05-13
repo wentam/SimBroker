@@ -194,9 +194,11 @@ void SimBroker::updateOrderFillState(Order& o) {
     if (hist.status != OrderStatus::OPEN) continue;
     uint64_t nextStatus = 0;
     if (o.orderStatusHistory.size() > i+1) nextStatus = o.orderStatusHistory.at(i+1).time;
+  
+    bool exitedOnStatusEnd = false;  
 
-    this->eachBar(o.symbol, o.createdAt-60, [&filledSeconds, &avgPrice, &o, this, &filledShares, &nextStatus](auto bar) {
-      if (nextStatus > 0 && bar.time > nextStatus) return false;
+    this->eachBar(o.symbol, o.createdAt-60, [&filledSeconds, &avgPrice, &o, this, &filledShares, &nextStatus, &exitedOnStatusEnd](auto bar) {
+      if (nextStatus > 0 && bar.time > nextStatus) {exitedOnStatusEnd = true; return false;}
       if (bar.time+60 < o.createdAt) return true;
       if (bar.time > this->clock) return false;
 
@@ -240,6 +242,14 @@ void SimBroker::updateOrderFillState(Order& o) {
 
       return true;
     });
+
+    // If the order is never going to fill in the open period, 
+    // we need to make sure we're not going to check it again next tick.
+    // TODO would be cleaner to set a flag rather than set qty, as the user is going to see their qty drop to 0
+    if (exitedOnStatusEnd && o.filledQty < o.qty && hist.status == OrderStatus::OPEN) {
+      this->cancelOrder(o.id);
+      o.qty = 0;
+    }
 
     i++;
   }
