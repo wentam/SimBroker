@@ -163,6 +163,7 @@ void SimBroker::eachBar(std::string ticker, uint64_t startTime, std::function<bo
   const uint64_t barCount = 5000;
   while (true) {
     auto bars = this->stockDataSource->getMinuteBars(ticker, startTime, startTime+(barCount*60));
+    if (bars.size() == 0) break;
     if (startTime > this->clock) { break; }
 
     bool end = false;
@@ -182,7 +183,7 @@ double SimBroker::estimateFillRate(SimBrokerStockDataSource::Bar b) {
 }
 
 void SimBroker::updateOrderFillState(Order& o) {
-  if (o.filledQty == o.qty || o.qty == 0) return; // Nothing to do in these situations
+  if (o.filledQty == o.qty || o.qty == 0 || o.burned) return; // Nothing to do in these situations
 
   int64_t startQty = o.filledQty;
   uint64_t filledSeconds = 0;
@@ -191,14 +192,17 @@ void SimBroker::updateOrderFillState(Order& o) {
 
   uint32_t i = 0;
   for (auto hist : o.orderStatusHistory) {
-    if (hist.status != OrderStatus::OPEN) continue;
+    if (hist.status != OrderStatus::OPEN) { i++; continue; }
     uint64_t nextStatus = 0;
     if (o.orderStatusHistory.size() > i+1) nextStatus = o.orderStatusHistory.at(i+1).time;
-  
-    bool exitedOnStatusEnd = false;  
+   // printf("nextStatus: %ld\n", nextStatus);
 
-    this->eachBar(o.symbol, o.createdAt-60, [&filledSeconds, &avgPrice, &o, this, &filledShares, &nextStatus, &exitedOnStatusEnd](auto bar) {
-      if (nextStatus > 0 && bar.time > nextStatus) {exitedOnStatusEnd = true; return false;}
+    bool exitedOnStatusEnd = false;  
+    bool gotBars = false;
+
+    this->eachBar(o.symbol, o.createdAt-60, [&filledSeconds, &avgPrice, &o, this, &filledShares, &nextStatus, &exitedOnStatusEnd, &gotBars](auto bar) {
+      gotBars = true;
+      if (nextStatus > 0 && bar.time > nextStatus) { exitedOnStatusEnd = true; return false;}
       if (bar.time+60 < o.createdAt) return true;
       if (bar.time > this->clock) return false;
 
@@ -243,12 +247,18 @@ void SimBroker::updateOrderFillState(Order& o) {
       return true;
     });
 
-    // If the order is never going to fill in the open period, 
+
+    // If the order is never going to fill in the open status period, 
     // we need to make sure we're not going to check it again next tick.
-    // TODO would be cleaner to set a flag rather than set qty, as the user is going to see their qty drop to 0
+    //printf("exitedOnStatusEnd: %d\n", exitedOnStatusEnd);
     if (exitedOnStatusEnd && o.filledQty < o.qty && hist.status == OrderStatus::OPEN) {
-      this->cancelOrder(o.id);
-      o.qty = 0;
+      //printf("BURNING\n");
+      o.burned = true;
+    }
+
+    if (!gotBars && o.filledQty < o.qty && this->clock > nextStatus) {
+     // printf("BURNING\n");
+      o.burned = true;
     }
 
     i++;

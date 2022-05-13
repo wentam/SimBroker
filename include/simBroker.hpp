@@ -131,6 +131,8 @@ class SimBroker {
       };
 
       std::vector<OrderStatusHistoryEntry> orderStatusHistory;
+
+      bool burned = false;
     };
 
     SimBroker(SimBrokerStockDataSource* dataSource, uint64_t startTime, bool margin);
