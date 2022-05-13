@@ -195,7 +195,6 @@ void SimBroker::updateOrderFillState(Order& o) {
     if (hist.status != OrderStatus::OPEN) { i++; continue; }
     uint64_t nextStatus = 0;
     if (o.orderStatusHistory.size() > i+1) nextStatus = o.orderStatusHistory.at(i+1).time;
-   // printf("nextStatus: %ld\n", nextStatus);
 
     bool exitedOnStatusEnd = false;  
     bool gotBars = false;
@@ -250,14 +249,11 @@ void SimBroker::updateOrderFillState(Order& o) {
 
     // If the order is never going to fill in the open status period, 
     // we need to make sure we're not going to check it again next tick.
-    //printf("exitedOnStatusEnd: %d\n", exitedOnStatusEnd);
     if (exitedOnStatusEnd && o.filledQty < o.qty && hist.status == OrderStatus::OPEN) {
-      //printf("BURNING\n");
       o.burned = true;
     }
 
     if (!gotBars && o.filledQty < o.qty && this->clock > nextStatus) {
-     // printf("BURNING\n");
       o.burned = true;
     }
 
