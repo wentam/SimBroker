@@ -105,6 +105,7 @@ uint64_t SimBroker::placeOrder(OrderPlan p) {
   if (o.qty > 0) {
     // Set status for buy orders
     double price = this->stockDataSource->getPrice(o.symbol, this->clock);
+    if (price < 0) this->setOrderStatus(o, SimBroker::OrderStatus::REJECTED, this->clock);
     if (price > o.limitPrice && o.type == OrderType::LIMIT) price = o.limitPrice;
 
     bool me = this->marginEnabled;
