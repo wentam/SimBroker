@@ -199,7 +199,7 @@ class TestSimBrokerStockDataSource : SimBrokerStockDataSource {
     std::vector<Bar> getMinuteBars(std::string ticker, uint64_t startTime, uint64_t endTime) {
       std::vector<Bar> r;
       for (auto bar : bars[ticker+"1Min"]) {
-        if (bar.time > startTime && bar.time < (endTime-60)) {
+        if (bar.time >= startTime && bar.time < (endTime-60)) {
           r.push_back(bar);
         }
       }
@@ -209,7 +209,7 @@ class TestSimBrokerStockDataSource : SimBrokerStockDataSource {
 
     double getPrice(std::string ticker, uint64_t time) {
       for (auto bar : bars[ticker+"1Min"]) {
-        if (bar.time > time) return bar.openPrice;
+        if (bar.time >= time) return bar.openPrice;
       }
       throw std::logic_error("Failed to get price");
       return 0.0;

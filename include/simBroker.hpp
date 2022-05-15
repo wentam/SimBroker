@@ -41,6 +41,10 @@ class SimBrokerStockDataSource {
     // TODO: it would be better to split getPrice up into getBidPrice and getAskPrice.
     // The problem: the data source in use is likely to be "bars", which don't hold that concept.
     // Need to look into this in more detail.
+    //
+    // getPrice should fall back on hour bars followed by day bars if it can't find the price with minute bars -
+    // or at least look back a very long time in min bars (a month).
+    // There can be very large gaps in minute bar data.
     virtual double getPrice(std::string ticker, uint64_t time) = 0;        // Return < 0 if price is not available
 
     virtual double getAssetBorrowRate(std::string ticker, uint64_t time) = 0;
@@ -193,6 +197,9 @@ class SimBroker {
     void chargeDayInterest();
     double estimateFillRate(SimBrokerStockDataSource::Bar b);
 
+    void eachBarChunk(std::string ticker, 
+                      uint64_t startTime,
+                      std::function<bool(std::vector<SimBrokerStockDataSource::Bar> bars, uint64_t chunkStart, uint64_t chunkEnd)> func);
     void eachBar(std::string ticker, uint64_t startTime, std::function<bool(SimBrokerStockDataSource::Bar b)> func);
     void updateOrderFillState(Order& o);
     void updateOrderTIF(Order& o);

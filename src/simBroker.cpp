@@ -158,8 +158,20 @@ uint64_t SimBroker::placeOrder(OrderPlan p) {
   return o.id;
 }
 
-// Iterates forward until no more bars are available. Return false in lambda to stop.
-void SimBroker::eachBar(std::string ticker, uint64_t startTime, std::function<bool(SimBrokerStockDataSource::Bar b)> func) {
+
+void SimBroker::eachBarChunk(std::string ticker, 
+                             uint64_t startTime,
+                             std::function<bool(std::vector<SimBrokerStockDataSource::Bar> bars, uint64_t chunkStart, uint64_t chunkEnd)> func) {
+  const uint64_t chunkSize = 1000;
+  for (uint64_t t = startTime; true; t += chunkSize*60) {
+    uint64_t thisEnd = t+(chunkSize*60);
+    if (t+60 > this->clock) break;
+    auto bars = this->stockDataSource->getMinuteBars(ticker, t, thisEnd);  
+    if (!func(bars, t, thisEnd)) break;
+  }
+}
+
+/*void SimBroker::eachBar(std::string ticker, uint64_t startTime, std::function<bool(SimBrokerStockDataSource::Bar b)> func) {
   const uint64_t barCount = 5000;
   while (true) {
     auto bars = this->stockDataSource->getMinuteBars(ticker, startTime, startTime+(barCount*60));
@@ -169,11 +181,65 @@ void SimBroker::eachBar(std::string ticker, uint64_t startTime, std::function<bo
     bool end = false;
     for (auto bar : bars)  {
       if (bar.time > this->clock) continue;
+      if (ticker == "PLUG") printf("bar %ld %ld %lf\n", bar.time, startTime, bar.openPrice);
       if (!func(bar)) { end = true; break; }
     }
+
     if (end) { break;}
     startTime += (barCount*60);
-  } 
+  }
+}*/
+
+// Iterates forward until no more bars are available. Return false in lambda to stop.
+// Will fill empty spaces in data with the most recently known price/bar
+void SimBroker::eachBar(std::string ticker, uint64_t startTime, std::function<bool(SimBrokerStockDataSource::Bar b)> func) {
+  uint64_t lastChunkEnd = 0;
+  uint64_t clock = this->clock;
+
+  SimBrokerStockDataSource::Bar myPrevBar;
+  bool myPrevBarExists = false;
+  this->eachBarChunk(ticker, 
+                     startTime, 
+                     [&startTime, &clock, &lastChunkEnd, *this, &ticker, &func, &myPrevBar, &myPrevBarExists]
+                     (auto bars, uint64_t chunkStart, uint64_t chunkEnd) {
+    int64_t barIndex = -1;
+    SimBrokerStockDataSource::Bar bar;
+    if (bars.size() > 0) { barIndex++; bar = bars.at(barIndex); }
+    for (uint64_t bt = (chunkStart/60)*60; bt < chunkEnd; bt += 60) {
+      if (bt < chunkStart) continue;
+      if (bt <= lastChunkEnd && lastChunkEnd != 0) continue;
+      while (barIndex >= 0 && bt >= bar.time+60 && barIndex+1 < (int64_t)bars.size()) { barIndex++; bar = bars.at(barIndex);}
+      if (bt > clock) { return false; }
+
+      SimBrokerStockDataSource::Bar myBar;
+      if (barIndex >= 0 && bar.time <= bt) { 
+        myBar = bar;
+        myBar.time = bt;
+      } else {
+        // We didn't find any bars yet, so we call getPrice() to fill the bar (which should fall back to hour bars etc)
+        // volume of zero, because if a trade occured there would be a bar
+        // TODO: we could fall back on hour/day bars ourselves if we don't want to trust the stockDataSource to do it right
+        double price;
+        if (!myPrevBarExists) price = this->stockDataSource->getPrice(ticker, bt);
+        else price = myPrevBar.closePrice;
+
+        if (price > 0) myBar = {bt,price,price,price,price,0};
+        else continue;
+      }
+
+      if (!func(myBar)) return false;
+      if (myPrevBarExists && myPrevBar.time+60 != myBar.time) 
+        throw std::runtime_error("Gap in data in bars in eachBar() "
+                                 +std::to_string(myPrevBar.time)
+                                 +"->"+std::to_string(myBar.time)
+                                 +" (perhaps SimBrokerStockDataSource::getPrice returned < 0?)");
+      myPrevBar = myBar;
+      myPrevBarExists = true;
+    }
+
+    lastChunkEnd = bars.back().time;
+    return true; 
+  });
 }
 
 double SimBroker::estimateFillRate(SimBrokerStockDataSource::Bar b) {
@@ -195,7 +261,6 @@ void SimBroker::updateOrderFillState(Order& o) {
     if (hist.status != OrderStatus::OPEN) { i++; continue; }
     uint64_t nextStatus = 0;
     if (o.orderStatusHistory.size() > i+1) nextStatus = o.orderStatusHistory.at(i+1).time;
-
 
     this->eachBar(o.symbol, o.createdAt-60, [&filledSeconds, &avgPrice, &o, this, &filledShares, &nextStatus](auto bar) {
       if (nextStatus > 0 && bar.time > nextStatus) return false;
@@ -238,7 +303,9 @@ void SimBroker::updateOrderFillState(Order& o) {
         else filledShares += (estimateFillRate(bar)*relevantSeconds);
       }
 
-      if (filledShares >= llabs(o.qty)) return false;
+      if (filledShares >= llabs(o.qty)) {
+        return false;
+      }
 
       return true;
     });
