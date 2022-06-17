@@ -2625,6 +2625,14 @@ int main() {
   // the limit order still fills
   // TODO: test that instafill actually fills instantly without a call to updateClock
 
+  // TODO:
+  /*Alpaca applies a “buying” power check to both buy long and sell short positions.
+
+    The calculated value of an opening buy order is the order’s limit price multiplied by the order’s quantity. In the case of market buy orders, the limit price is 2.5% to 4% above the current market price as noted above.
+
+    The calculated value of an opening sell short order is MAX(order’s limit price, 3% above the current ask price) multiplied by the order’s quantity. In the case of market short orders, the value is simply 3% above the current ask price * order quantity.*/
+
+
   // Longer term tasks:
   // TODO: test orders quantities near int64_t max
   // TODO: test that orders near the end of our existing data partially fill, but also fully fill once the data becomes available

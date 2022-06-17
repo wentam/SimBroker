@@ -165,6 +165,7 @@ void SimBroker::eachBarChunk(std::string ticker,
   const uint64_t chunkSize = 1000;
   for (uint64_t t = startTime; true; t += chunkSize*60) {
     uint64_t thisEnd = t+(chunkSize*60);
+		if (thisEnd > this->clock) thisEnd = this->clock;
     if (t+60 > this->clock) break;
     auto bars = this->stockDataSource->getMinuteBars(ticker, t, thisEnd);  
     if (!func(bars, t, thisEnd)) break;
