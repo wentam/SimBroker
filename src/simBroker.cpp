@@ -266,9 +266,9 @@ void SimBroker::updateOrderFillState(Order& o) {
     uint64_t nextStatus = 0;
     if (o.orderStatusHistory.size() > i+1) nextStatus = o.orderStatusHistory.at(i+1).time;
 
-    this->eachBar(o.symbol, ((o.createdAt/60)*60), [&filledSeconds, &avgPrice, &o, this, &filledShares, &nextStatus](auto bar) {
+    this->eachBar(o.symbol, ((o.createdAt/60)*60)-60, [&filledSeconds, &avgPrice, &o, this, &filledShares, &nextStatus](auto bar) {
       if (nextStatus > 0 && bar.time > nextStatus) return false;
-      if (bar.time+60 < o.createdAt) return true;
+      if (bar.time+60 <= o.createdAt) return true;
       if (bar.time > this->clock) return false;
 
       // TODO: wouldn't we want to return true here?
@@ -294,7 +294,7 @@ void SimBroker::updateOrderFillState(Order& o) {
         if (relevantSecond) back = true;
       }
 
-      if (o.createdAt > relevantStart && !this->instaFill) relevantStart += o.createdAt-bar.time; 
+      if (o.createdAt > relevantStart) relevantStart += o.createdAt-bar.time;
       if (this->clock < relevantEnd && !this->instaFill) relevantEnd -= (bar.time+60)-this->clock;
 
       int64_t relevantSeconds = relevantEnd-relevantStart;
