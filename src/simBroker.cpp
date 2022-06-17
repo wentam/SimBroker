@@ -248,7 +248,8 @@ void SimBroker::eachBar(std::string ticker, uint64_t startTime, std::function<bo
 double SimBroker::estimateFillRate(SimBrokerStockDataSource::Bar b) {
   // TODO incomplete model, as this assumes the entire market is trading exclusively with us.
   // (this is a good upper bound, however)
-  return (b.volume/60);
+  //return (b.volume/60);
+	return 999999999999999;
 }
 
 void SimBroker::updateOrderFillState(Order& o) {
@@ -265,7 +266,7 @@ void SimBroker::updateOrderFillState(Order& o) {
     uint64_t nextStatus = 0;
     if (o.orderStatusHistory.size() > i+1) nextStatus = o.orderStatusHistory.at(i+1).time;
 
-    this->eachBar(o.symbol, ((o.createdAt/60)*60)-60, [&filledSeconds, &avgPrice, &o, this, &filledShares, &nextStatus](auto bar) {
+    this->eachBar(o.symbol, ((o.createdAt/60)*60), [&filledSeconds, &avgPrice, &o, this, &filledShares, &nextStatus](auto bar) {
       if (nextStatus > 0 && bar.time > nextStatus) return false;
       if (bar.time+60 < o.createdAt) return true;
       if (bar.time > this->clock) return false;
@@ -293,7 +294,7 @@ void SimBroker::updateOrderFillState(Order& o) {
         if (relevantSecond) back = true;
       }
 
-      if (o.createdAt > relevantStart) relevantStart += o.createdAt-bar.time; 
+      if (o.createdAt > relevantStart && !this->instaFill) relevantStart += o.createdAt-bar.time; 
       if (this->clock < relevantEnd && !this->instaFill) relevantEnd -= (bar.time+60)-this->clock;
 
       int64_t relevantSeconds = relevantEnd-relevantStart;
