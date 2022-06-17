@@ -299,7 +299,7 @@ void SimBroker::updateOrderFillState(Order& o) {
         if (relevantSecond) back = true;
       }
 
-      if (o.createdAt > relevantStart) relevantStart += o.createdAt-bar.time;
+      if (o.createdAt > relevantStart && !this->instalFill) relevantStart += o.createdAt-bar.time;
       if (this->clock < relevantEnd && !this->instaFill) relevantEnd -= (bar.time+60)-this->clock;
 
       int64_t relevantSeconds = relevantEnd-relevantStart;
