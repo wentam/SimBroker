@@ -305,7 +305,12 @@ void SimBroker::updateOrderFillState(Order& o) {
 
       if (relevantSeconds > 0) {
         filledSeconds += relevantSeconds;
-        avgPrice += bar.closePrice*relevantSeconds;
+
+				if (this->instaFill && o.createdAt-bar.time <= 60 && o.createdAt-bar.time >= 28)
+					avgPrice += bar.closePrice*relevantSeconds;
+        else
+					avgPrice += bar.openPrice*relevantSeconds;
+
         if (this->instaFill) filledShares = llabs(o.qty);
         else filledShares += (estimateFillRate(bar)*relevantSeconds);
       }
