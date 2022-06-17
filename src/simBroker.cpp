@@ -159,15 +159,15 @@ uint64_t SimBroker::placeOrder(OrderPlan p) {
 }
 
 
-void SimBroker::eachBarChunk(std::string ticker, 
+void SimBroker::eachBarChunk(std::string ticker,
                              uint64_t startTime,
                              std::function<bool(std::vector<SimBrokerStockDataSource::Bar> bars, uint64_t chunkStart, uint64_t chunkEnd)> func) {
   const uint64_t chunkSize = 1000;
   for (uint64_t t = startTime; true; t += chunkSize*60) {
     uint64_t thisEnd = t+(chunkSize*60);
-		if (thisEnd > this->clock) thisEnd = this->clock;
     if (t+60 > this->clock) break;
-    auto bars = this->stockDataSource->getMinuteBars(ticker, t, thisEnd);  
+    if (thisEnd > this->clock) thisEnd = this->clock;
+    auto bars = this->stockDataSource->getMinuteBars(ticker, t, thisEnd);
     if (!func(bars, t, thisEnd)) break;
   }
 }
@@ -199,6 +199,7 @@ void SimBroker::eachBar(std::string ticker, uint64_t startTime, std::function<bo
 
   SimBrokerStockDataSource::Bar myPrevBar;
   bool myPrevBarExists = false;
+
   this->eachBarChunk(ticker, 
                      startTime, 
                      [&startTime, &clock, &lastChunkEnd, *this, &ticker, &func, &myPrevBar, &myPrevBarExists]
@@ -229,6 +230,7 @@ void SimBroker::eachBar(std::string ticker, uint64_t startTime, std::function<bo
       }
 
       if (!func(myBar)) return false;
+
       if (myPrevBarExists && myPrevBar.time+60 != myBar.time) 
         throw std::runtime_error("Gap in data in bars in eachBar() "
                                  +std::to_string(myPrevBar.time)
@@ -238,7 +240,7 @@ void SimBroker::eachBar(std::string ticker, uint64_t startTime, std::function<bo
       myPrevBarExists = true;
     }
 
-    lastChunkEnd = bars.back().time;
+		if (bars.size() > 0) lastChunkEnd = bars.back().time;
     return true; 
   });
 }
@@ -263,7 +265,7 @@ void SimBroker::updateOrderFillState(Order& o) {
     uint64_t nextStatus = 0;
     if (o.orderStatusHistory.size() > i+1) nextStatus = o.orderStatusHistory.at(i+1).time;
 
-    this->eachBar(o.symbol, o.createdAt-60, [&filledSeconds, &avgPrice, &o, this, &filledShares, &nextStatus](auto bar) {
+    this->eachBar(o.symbol, ((o.createdAt/60)*60)-60, [&filledSeconds, &avgPrice, &o, this, &filledShares, &nextStatus](auto bar) {
       if (nextStatus > 0 && bar.time > nextStatus) return false;
       if (bar.time+60 < o.createdAt) return true;
       if (bar.time > this->clock) return false;

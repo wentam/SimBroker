@@ -214,7 +214,7 @@ class SimBroker {
 
     SimBrokerStockDataSource* stockDataSource;
     double balance;
-    uint64_t clock;
+    uint64_t clock = 0;
     std::vector<Order>    orders;
     std::vector<Position> positions;
     bool marginEnabled = false;
