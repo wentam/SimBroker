@@ -510,12 +510,21 @@ void SimBroker::addToPosition(std::string symbol, int64_t qty, double avgPrice) 
       p.costBasis = p.avgEntryPrice*p.qty;
       p.qty += qty;
 
-			if ((qty > 0 && p.lastChange < 0) ||
-					(qty < 0 && p.lastChange > 0)) {
-				this->roundTrips.push_back(this->clock);
-			}
+      if (((qty > 0 && p.lastChange < 0) || (qty < 0 && p.lastChange > 0)) &&
+          (
+						this->stockDataSource
+             ->getNextMarketPhaseChangeTo(p.lastChangeTime,
+                                          SimBrokerStockDataSource::MarketPhase::PREMARKET)
+             .time
+						 ==
+						 this->stockDataSource
+                        ->getNextMarketPhaseChangeTo(
+                          this->clock, SimBrokerStockDataSource::MarketPhase::PREMARKET)
+                        .time)) {
+        this->roundTrips.push_back(this->clock);
+      }
 
-			p.lastChange = qty;
+                        p.lastChange = qty;
 			p.lastChangeTime = this->clock;
 
       exists = true;

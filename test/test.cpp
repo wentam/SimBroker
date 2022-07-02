@@ -3012,6 +3012,31 @@ int main() {
 		return (o.status != SimBroker::OrderStatus::REJECTED) && (o2.status != SimBroker::OrderStatus::REJECTED);
 	}, "If we're flagged as a pattern day trader and have less than $25k with a cash account, both buy and sell orders are accepted");
 
+	test([&mSource]() {
+	  SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1644854400, true); // Feb 14 11am EST
+	  simBroker.addFunds(15000);
+
+		bool PDTCalled = false;
+		simBroker.setPDTCallHandler([&PDTCalled](){ PDTCalled = true; });
+
+		SimBroker::OrderPlan p = {};
+		p.symbol = "SPY";
+		p.qty = 1;
+
+		SimBroker::OrderPlan sp = {};
+		sp.symbol = "SPY";
+		sp.qty = -1;
+
+		for (int i = 0; i < 4; i++) {
+			simBroker.placeOrder(p);
+			simBroker.updateClock(simBroker.getClock()+(3600*23));
+			simBroker.placeOrder(sp);
+			simBroker.updateClock(simBroker.getClock()+(3600));
+		}
+
+		return simBroker.remainingDayTrades() == 3 && !PDTCalled;
+	}, "buy->sell on different days does not count as a round trip");
+
 	// TODO: good faith violations for non-margin/cash accounts
 
   // TODO: test long position margin calls in the same precise way we're testing short position margin calls
