@@ -97,6 +97,9 @@ class SimBroker {
       int64_t qty; // Positive value = long, negative value = short
       double costBasis;
       uint64_t createdTime = 0;
+
+			int64_t lastChange = 0;
+			int64_t lastChangeTime = 0;
     };
 
     struct OrderPlan {
@@ -154,6 +157,18 @@ class SimBroker {
     uint64_t getClock();
     void addFunds(double chedda);
     void rmFunds(double cheeze);
+
+
+		// PDT
+
+		// Called when your account becomes flagged as a pattern day trader (but was not before)
+		void setPDTCallHandler(std::function<void()> func);
+
+		// The quantity of remaining day trades if you don't want to get flagged as a pattern day trader
+		// If you're already a pattern day trader, this will still be reported as though you weren't
+		// Can be negative.
+		int8_t remainingDayTrades(); 
+		bool PDT(); // true if your account is considered a pattern day trader
 
     // Margin
     void setInitialMarginRequirement(double req);
@@ -223,7 +238,11 @@ class SimBroker {
     double initialMarginRequirement = 0.5;
     double maintenanceMarginRequirement = 0.35;
     bool marginCallHandlerDefined = false;
+    bool PDTCallHandlerDefined = false;
     uint64_t lastInterestTime = 0;
     double interestRate = 0.0375;
     std::function<void()> marginCallHandler;
+    std::function<void()> PDTCallHandler;
+		std::vector<int64_t> roundTrips;
+		bool isPDT = false;
 };

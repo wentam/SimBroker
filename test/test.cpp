@@ -2571,6 +2571,448 @@ int main() {
     return !marginCalled;
   }, "If the price doesn't rise enough while we are holding a short position, we don't get margin called");
 
+  // PDT
+  printf(BYEL "\nPDT: \n" RESET);
+
+	test([&mSource]() {
+	  SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1644854400, true); // Feb 14 11am EST
+	  simBroker.addFunds(200000);
+
+		bool PDTCalled = false;
+		simBroker.setPDTCallHandler([&PDTCalled](){
+	    PDTCalled = true;	
+		});
+
+		SimBroker::OrderPlan p = {};
+		p.symbol = "SPY";
+		p.qty = 1;
+
+		SimBroker::OrderPlan sp = {};
+		sp.symbol = "SPY";
+		sp.qty = -1;
+
+		for (int i = 0; i < 4; i++) {
+			simBroker.placeOrder(p);
+			simBroker.updateClock(simBroker.getClock()+3600);
+			simBroker.placeOrder(sp);
+			simBroker.updateClock(simBroker.getClock()+(3600*23));
+		}
+
+		return PDTCalled && simBroker.PDT();
+	}, "4 buy->sell round-trips within a 5-market-day period result in PDT call");
+
+	test([&mSource]() {
+	  SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1644854400, true); // Feb 14 11am EST
+	  simBroker.addFunds(200000);
+
+		bool PDTCalled = false;
+		simBroker.setPDTCallHandler([&PDTCalled](){
+	    PDTCalled = true;	
+		});
+
+		SimBroker::OrderPlan p = {};
+		p.symbol = "SPY";
+		p.qty = 1;
+
+		SimBroker::OrderPlan sp = {};
+		sp.symbol = "SPY";
+		sp.qty = -1;
+
+		for (int i = 0; i < 3; i++) {
+			simBroker.placeOrder(p);
+			simBroker.updateClock(simBroker.getClock()+3600);
+			simBroker.placeOrder(sp);
+			simBroker.updateClock(simBroker.getClock()+(3600*23));
+		}
+
+		return (!PDTCalled) && (!simBroker.PDT());
+	}, "3 buy->sell round-trips within a 5-market-day period don't result in PDT call");
+
+	test([&mSource]() {
+	  SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1644854400, true); // Feb 14 11am EST
+	  simBroker.addFunds(200000);
+
+		bool PDTCalled = false;
+		simBroker.setPDTCallHandler([&PDTCalled](){
+	    PDTCalled = true;	
+		});
+
+		SimBroker::OrderPlan p = {};
+		p.symbol = "SPY";
+		p.qty = 1;
+
+		SimBroker::OrderPlan sp = {};
+		sp.symbol = "SPY";
+		sp.qty = -1;
+
+		for (int i = 0; i < 4; i++) {
+			simBroker.placeOrder(sp);
+			simBroker.updateClock(simBroker.getClock()+3600);
+			simBroker.placeOrder(p);
+			simBroker.updateClock(simBroker.getClock()+(3600*23));
+		}
+
+		return PDTCalled && simBroker.PDT();
+	}, "4 short->cover round-trips within a 5-market-day period result in PDT call");
+
+	test([&mSource]() {
+	  SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1645200000, true); // Fri Feb 18 11am EST
+	  simBroker.addFunds(200000);
+
+		bool PDTCalled = false;
+		simBroker.setPDTCallHandler([&PDTCalled](){ PDTCalled = true; });
+
+		SimBroker::OrderPlan p = {};
+		p.symbol = "SPY";
+		p.qty = 1;
+
+		SimBroker::OrderPlan sp = {};
+		sp.symbol = "SPY";
+		sp.qty = -1;
+ 
+		simBroker.placeOrder(p);
+		simBroker.updateClock(simBroker.getClock()+3600);
+		simBroker.placeOrder(sp);
+		simBroker.updateClock(simBroker.getClock()+(3600*95)); // Tues Feb 22 11am EST
+
+		for (int i = 0; i < 3; i++) {
+			simBroker.placeOrder(p);
+			simBroker.updateClock(simBroker.getClock()+3600);
+			simBroker.placeOrder(sp);
+			if (i < 2) simBroker.updateClock(simBroker.getClock()+(3600*23));
+			else simBroker.updateClock(simBroker.getClock()+3600);
+		}
+
+		// Should now be Thurs Feb 24 1pm EST
+
+		return PDTCalled && simBroker.PDT();
+	}, "4 buy->sell round-trips within a 5-market-day period over the weekend (more than 5 calendar days) result in PDT call");
+
+	test([&mSource]() {
+	  SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1645200000, true); // Fri Feb 18 11am EST
+	  simBroker.addFunds(200000);
+
+		bool PDTCalled = false;
+		simBroker.setPDTCallHandler([&PDTCalled](){ PDTCalled = true; });
+
+		SimBroker::OrderPlan p = {};
+		p.symbol = "SPY";
+		p.qty = 1;
+
+		SimBroker::OrderPlan sp = {};
+		sp.symbol = "SPY";
+		sp.qty = -1;
+ 
+		simBroker.placeOrder(sp);
+		simBroker.updateClock(simBroker.getClock()+3600);
+		simBroker.placeOrder(p);
+		simBroker.updateClock(simBroker.getClock()+(3600*95)); // Tues Feb 22 11am EST
+
+		for (int i = 0; i < 3; i++) {
+			simBroker.placeOrder(sp);
+			simBroker.updateClock(simBroker.getClock()+3600);
+			simBroker.placeOrder(p);
+			if (i < 2) simBroker.updateClock(simBroker.getClock()+(3600*23));
+			else simBroker.updateClock(simBroker.getClock()+3600);
+		}
+
+		// Should now be Thurs Feb 24 1pm EST
+
+		return PDTCalled && simBroker.PDT();
+	}, "4 short->cover round-trips within a 5-market-day period over the weekend (more than 5 calendar days) result in PDT call");
+
+	test([&mSource]() {
+	  SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1644854400, true); // Feb 14 11am EST
+	  simBroker.addFunds(200000);
+		return simBroker.remainingDayTrades() == 3;
+	}, "remainingDayTrades() == 3 if we have not placed any orders");
+
+	test([&mSource]() {
+	  SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1644854400, true); // Feb 14 11am EST
+	  simBroker.addFunds(200000);
+
+		SimBroker::OrderPlan p = {};
+		p.symbol = "SPY";
+		p.qty = 1;
+
+		SimBroker::OrderPlan sp = {};
+		sp.symbol = "SPY";
+		sp.qty = -1;
+		sp.type = SimBroker::OrderType::LIMIT;
+		sp.limitPrice = 9999999; // This limit order should never fill
+
+		simBroker.placeOrder(p);
+		simBroker.updateClock(simBroker.getClock()+3600);
+		simBroker.placeOrder(sp);
+
+		return simBroker.remainingDayTrades() == 3;
+	}, "Buying a stock and placing an *unfilled* limit order the same day does not count as a round-trip");
+
+	test([&mSource]() {
+	  SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1644854400, true); // Feb 14 11am EST
+	  simBroker.addFunds(200000);
+
+		uint8_t dt = simBroker.remainingDayTrades();
+
+		SimBroker::OrderPlan p = {};
+		p.symbol = "SPY";
+		p.qty = 1;
+
+		SimBroker::OrderPlan sp = {};
+		sp.symbol = "SPY";
+		sp.qty = -1;
+
+		simBroker.placeOrder(sp);
+		simBroker.updateClock(simBroker.getClock()+3600);
+		simBroker.placeOrder(p);
+		simBroker.updateClock(simBroker.getClock()+3600);
+
+		return simBroker.remainingDayTrades() == dt-1;
+	}, "Short->cover same day counts as a round trip");
+
+	test([&mSource]() {
+	  SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1644854400, true); // Feb 14 11am EST
+	  simBroker.addFunds(200000);
+
+		uint8_t dt = simBroker.remainingDayTrades();
+
+		SimBroker::OrderPlan p = {};
+		p.symbol = "SPY";
+		p.qty = -1;
+
+		SimBroker::OrderPlan sp = {};
+		sp.symbol = "SPY";
+		sp.qty = 1;
+		sp.type = SimBroker::OrderType::LIMIT;
+		sp.limitPrice = 1; // This limit order should never fill
+
+		simBroker.placeOrder(p);
+		simBroker.updateClock(simBroker.getClock()+3600);
+		simBroker.placeOrder(sp);
+
+		return simBroker.remainingDayTrades() == dt;
+	}, "Short->place unfilled limit cover order does not count as a round trip");
+
+	test([&mSource]() {
+	  SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1644854400, true); // Feb 14 11am EST
+	  simBroker.addFunds(200000);
+
+		bool PDTCalled = false;
+		simBroker.setPDTCallHandler([&PDTCalled](){ PDTCalled = true; });
+
+		uint8_t dt = simBroker.remainingDayTrades();
+
+		SimBroker::OrderPlan p = {};
+		p.symbol = "SPY";
+		p.qty = 1;
+
+		SimBroker::OrderPlan sp = {};
+		sp.symbol = "SPY";
+		sp.qty = -1;
+
+		for (int i = 0; i < 4; i++) { simBroker.placeOrder(p); }
+		simBroker.updateClock(simBroker.getClock()+3600);
+		for (int i = 0; i < 4; i++) { simBroker.placeOrder(sp); }
+		simBroker.updateClock(simBroker.getClock()+3600);
+
+		return simBroker.remainingDayTrades() == (dt-1) && !PDTCalled;
+	}, "buy->buy->buy->buy->sell->sell->sell->sell counts as a single round trip");
+
+	test([&mSource]() {
+	  SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1644854400, true); // Feb 14 11am EST
+	  simBroker.addFunds(200000);
+
+		SimBroker::OrderPlan p = {};
+		p.symbol = "SPY";
+		p.qty = 1;
+
+		SimBroker::OrderPlan sp = {};
+		sp.symbol = "SPY";
+		sp.qty = -1;
+
+		for (int i = 0; i < 3; i++) {
+			simBroker.placeOrder(p);
+			simBroker.updateClock(simBroker.getClock()+3600);
+			simBroker.placeOrder(sp);
+			simBroker.updateClock(simBroker.getClock()+(3600*23));
+		}
+		
+		uint64_t dt = simBroker.remainingDayTrades();
+
+		// We should have 0 day trades avail, move forward enough to clear
+		simBroker.updateClock(simBroker.getClock()+((3600*24)*7));
+		
+		return (dt == 0 && simBroker.remainingDayTrades() == 3);
+	}, "If we run out of available day trades, moving forward in time 5 market days returns to 3 available.");
+
+	test([&mSource]() {
+	  SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1644249600, true); // Feb 7 11am EST
+	  simBroker.addFunds(200000);
+
+		SimBroker::OrderPlan p = {};
+		p.symbol = "SPY";
+		p.qty = 1;
+
+		SimBroker::OrderPlan sp = {};
+		sp.symbol = "SPY";
+		sp.qty = -1;
+
+		for (int i = 0; i < 3; i++) {
+			simBroker.placeOrder(p);
+			simBroker.updateClock(simBroker.getClock()+3600);
+			simBroker.placeOrder(sp);
+			simBroker.updateClock(simBroker.getClock()+(3600*23));
+		}
+
+		simBroker.updateClock(simBroker.getClock()+(3600*24));
+		
+		int64_t dt = simBroker.remainingDayTrades();
+
+		// We should have 0 day trades avail, move forward (across weekend)
+		simBroker.updateClock(simBroker.getClock()+(3600*72));
+	
+		return (dt == 0 && simBroker.remainingDayTrades() == 1);
+	}, "If we run out of day trades, moving forward 1 day adds any relevant day trades back to the available pool");
+
+	test([&mSource]() {
+	  SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1644854400, true); // Feb 14 11am EST
+	  simBroker.addFunds(200000);
+
+		SimBroker::OrderPlan p = {};
+		p.symbol = "SPY";
+		p.qty = 1;
+
+		SimBroker::OrderPlan sp = {};
+		sp.symbol = "SPY";
+		sp.qty = -1;
+
+		for (int i = 0; i < 3; i++) {
+			simBroker.placeOrder(p);
+			simBroker.updateClock(simBroker.getClock()+3600);
+			simBroker.placeOrder(sp);
+			simBroker.updateClock(simBroker.getClock()+(3600*23));
+		}
+		
+		uint64_t dt = simBroker.remainingDayTrades();
+
+		// We should have 0 day trades avail, move forward
+		simBroker.updateClock(simBroker.getClock()+((3600*24)*5));
+		
+		return (dt == 0 && simBroker.remainingDayTrades() < 3);
+	}, "If we run out of available day trades, moving forward in time 5 calendar days but less than 5 market days does not return us to 3 available day trades");
+
+	test([&mSource]() {
+	  SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1644854400, true); // Feb 14 11am EST
+	  simBroker.addFunds(200000);
+
+		SimBroker::OrderPlan p = {};
+		p.symbol = "SPY";
+		p.qty = 1;
+
+		SimBroker::OrderPlan sp = {};
+		sp.symbol = "SPY";
+		sp.qty = -1;
+
+		for (int i = 0; i < 4; i++) {
+			simBroker.placeOrder(p);
+			simBroker.updateClock(simBroker.getClock()+3600);
+			simBroker.placeOrder(sp);
+			simBroker.updateClock(simBroker.getClock()+(3600*23));
+		}
+
+		// We should now be a pattern day trader, move forward enough to clear round-trip count
+		simBroker.updateClock(simBroker.getClock()+((3600*24)*5));
+		
+		uint64_t dt = simBroker.remainingDayTrades();
+
+		simBroker.placeOrder(p);
+		simBroker.updateClock(simBroker.getClock()+3600);
+		simBroker.placeOrder(sp);
+		simBroker.updateClock(simBroker.getClock()+3600);
+
+		return simBroker.remainingDayTrades() == dt-1;
+	}, "If we are a pattern day trader, remainingDayTrades() still reduces");
+
+	test([&mSource]() {
+	  SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1644854400, true); // Feb 14 11am EST
+	  simBroker.addFunds(15000);
+
+		SimBroker::OrderPlan p = {};
+		p.symbol = "SPY";
+		p.qty = 1;
+
+		SimBroker::OrderPlan sp = {};
+		sp.symbol = "SPY";
+		sp.qty = -1;
+
+		for (int i = 0; i < 4; i++) {
+			simBroker.placeOrder(p);
+			simBroker.updateClock(simBroker.getClock()+3600);
+			simBroker.placeOrder(sp);
+			simBroker.updateClock(simBroker.getClock()+(3600*23));
+		}
+
+		auto o = simBroker.getOrder(simBroker.placeOrder(p));
+		auto o2 = simBroker.getOrder(simBroker.placeOrder(sp));
+
+
+		return (o.status == SimBroker::OrderStatus::REJECTED) && (o2.status == SimBroker::OrderStatus::REJECTED);
+	}, "If we're flagged as a pattern day trader and have less than $25k with a margin account, both buy and sell orders are rejected");
+	// TODO: can we liquidate positions?
+
+	test([&mSource]() {
+	  SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1644854400, true); // Feb 14 11am EST
+	  simBroker.addFunds(200000);
+
+		SimBroker::OrderPlan p = {};
+		p.symbol = "SPY";
+		p.qty = 1;
+
+		SimBroker::OrderPlan sp = {};
+		sp.symbol = "SPY";
+		sp.qty = -1;
+
+		for (int i = 0; i < 4; i++) {
+			simBroker.placeOrder(p);
+			simBroker.updateClock(simBroker.getClock()+3600);
+			simBroker.placeOrder(sp);
+			simBroker.updateClock(simBroker.getClock()+(3600*23));
+		}
+
+		auto o = simBroker.getOrder(simBroker.placeOrder(p));
+		auto o2 = simBroker.getOrder(simBroker.placeOrder(sp));
+
+		return (o.status != SimBroker::OrderStatus::REJECTED) && (o2.status != SimBroker::OrderStatus::REJECTED);
+	}, "If we're flagged as a pattern day trader and have more than $25k, both buy and sell orders are accepted");
+
+	test([&mSource]() {
+	  SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1644854400, false); // Feb 14 11am EST
+	  simBroker.addFunds(15000);
+
+		SimBroker::OrderPlan p = {};
+		p.symbol = "SPY";
+		p.qty = 1;
+
+		SimBroker::OrderPlan sp = {};
+		sp.symbol = "SPY";
+		sp.qty = -1;
+
+		for (int i = 0; i < 4; i++) {
+			simBroker.placeOrder(p);
+			simBroker.updateClock(simBroker.getClock()+3600);
+			simBroker.placeOrder(sp);
+			simBroker.updateClock(simBroker.getClock()+(3600*23));
+		}
+
+		auto o = simBroker.getOrder(simBroker.placeOrder(p));
+		simBroker.updateClock(simBroker.getClock()+3600);
+		auto o2 = simBroker.getOrder(simBroker.placeOrder(sp));
+		simBroker.updateClock(simBroker.getClock()+3600);
+
+		return (o.status != SimBroker::OrderStatus::REJECTED) && (o2.status != SimBroker::OrderStatus::REJECTED);
+	}, "If we're flagged as a pattern day trader and have less than $25k with a cash account, both buy and sell orders are accepted");
+
+	// TODO: good faith violations for non-margin/cash accounts
 
   // TODO: test long position margin calls in the same precise way we're testing short position margin calls
 
@@ -2651,8 +3093,6 @@ int main() {
   if (fail == 0) return 0;
   return 1;
 };
-
-
 
 // LIMIT BUY: 97000.00 (100 * 970)
 //

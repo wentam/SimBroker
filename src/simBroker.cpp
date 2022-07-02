@@ -102,6 +102,11 @@ uint64_t SimBroker::placeOrder(OrderPlan p) {
   o.extendedHours = p.extendedHours;
   o.orderClass    = p.orderClass;
 
+	bool PDTAllowed = true;
+	if (this->PDT() && this->getEquity() < 25000 && this->marginEnabled) {
+		PDTAllowed = false;
+	}
+
   if (o.qty > 0) {
     // Set status for buy orders
     double price = this->stockDataSource->getPrice(o.symbol, this->clock);
@@ -110,7 +115,7 @@ uint64_t SimBroker::placeOrder(OrderPlan p) {
 
     bool me = this->marginEnabled;
     this->marginEnabled = (this->stockDataSource->isTickerMarginable(p.symbol, this->clock) && me);
-    if (this->getBuyingPower() >= (o.qty*price)) {
+    if (this->getBuyingPower() >= (o.qty*price) && PDTAllowed) {
       this->setOrderStatus(o,SimBroker::OrderStatus::OPEN, this->clock);
     } else {
       this->setOrderStatus(o, SimBroker::OrderStatus::REJECTED, this->clock);
@@ -129,11 +134,13 @@ uint64_t SimBroker::placeOrder(OrderPlan p) {
       // Short order
       this->setOrderStatus(o,SimBroker::OrderStatus::OPEN, this->clock);
 
-      if (!this->marginEnabled) 
+			if (!PDTAllowed)
         this->setOrderStatus(o, SimBroker::OrderStatus::REJECTED, this->clock);
-      if (!this->stockDataSource->isTickerShortable(o.symbol, this->clock)) 
+      if (!this->marginEnabled)
         this->setOrderStatus(o, SimBroker::OrderStatus::REJECTED, this->clock);
-      if (!this->stockDataSource->isTickerETB(o.symbol, this->clock)) 
+      if (!this->stockDataSource->isTickerShortable(o.symbol, this->clock))
+        this->setOrderStatus(o, SimBroker::OrderStatus::REJECTED, this->clock);
+      if (!this->stockDataSource->isTickerETB(o.symbol, this->clock))
         this->setOrderStatus(o, SimBroker::OrderStatus::REJECTED, this->clock);
       if (existingQty > 0)
         this->setOrderStatus(o, SimBroker::OrderStatus::REJECTED, this->clock);
@@ -142,6 +149,9 @@ uint64_t SimBroker::placeOrder(OrderPlan p) {
     } else {
       // Long order
       this->setOrderStatus(o,SimBroker::OrderStatus::OPEN, this->clock);
+
+			if (!PDTAllowed)
+        this->setOrderStatus(o, SimBroker::OrderStatus::REJECTED, this->clock);
     }
   } else {
     // Order quantity of zero is not valid
@@ -383,13 +393,19 @@ void SimBroker::updateState() {
   if (this->marginEnabled && this->marginCallHandlerDefined) {
     if (this->checkForMarginCall()) this->marginCallHandler();
   }
+
+	// PDT flag if necessary
+	if (this->roundTrips.size() > 3 && this->remainingDayTrades() < 0) {
+		this->isPDT = true;
+		if (this->PDTCallHandlerDefined) this->PDTCallHandler();
+	}
 }
 
-double SimBroker::getLoan() { 
+double SimBroker::getLoan() {
   if (!this->marginEnabled) return 0;
   double loan = 0;
 
-  double shortPositionSaleValue = 0.0; 
+  double shortPositionSaleValue = 0.0;
   for (auto p : this->getPositions()) {
     if (p.qty < 0) shortPositionSaleValue -= p.avgEntryPrice*p.qty;
   }
@@ -485,6 +501,7 @@ double SimBroker::getBuyingPower() {
 }
 
 void SimBroker::addToPosition(std::string symbol, int64_t qty, double avgPrice) {
+
   // Try to apply this to an existing position
   bool exists = false;
   for (auto& p : this->positions) {
@@ -492,6 +509,15 @@ void SimBroker::addToPosition(std::string symbol, int64_t qty, double avgPrice) 
       p.avgEntryPrice = ((p.qty*p.avgEntryPrice)+(qty*avgPrice))/((p.qty+qty)*1.0);
       p.costBasis = p.avgEntryPrice*p.qty;
       p.qty += qty;
+
+			if ((qty > 0 && p.lastChange < 0) ||
+					(qty < 0 && p.lastChange > 0)) {
+				this->roundTrips.push_back(this->clock);
+			}
+
+			p.lastChange = qty;
+			p.lastChangeTime = this->clock;
+
       exists = true;
       break;
     }
@@ -506,6 +532,8 @@ void SimBroker::addToPosition(std::string symbol, int64_t qty, double avgPrice) 
     p.qty = qty;
     p.costBasis = p.avgEntryPrice*p.qty;
     p.createdTime = this->clock;
+		p.lastChange = qty;
+		p.lastChangeTime = this->clock;
 
     this->positions.push_back(p);
   }
@@ -519,6 +547,9 @@ void SimBroker::addToPosition(std::string symbol, int64_t qty, double avgPrice) 
 }
 
 void SimBroker::setOrderStatus(Order& o, OrderStatus s, uint64_t time) {
+	if (o.orderStatusHistory.size() > 0 && o.orderStatusHistory.back().time == time)
+		o.orderStatusHistory.erase(o.orderStatusHistory.end()-1);
+
   o.status = s;
   o.orderStatusHistory.push_back({s, time});
 
@@ -527,7 +558,28 @@ void SimBroker::setOrderStatus(Order& o, OrderStatus s, uint64_t time) {
   });
 }
 
+// PDT
+int8_t SimBroker::remainingDayTrades() {
+	uint64_t start = this->clock;
+	for (int16_t i = 0; i < 5; i++) {
+		start =
+			this->stockDataSource
+			->getPrevMarketPhaseChangeTo(start - 1, SimBrokerStockDataSource::MarketPhase::PREMARKET)
+			.time;
+	}
 
+	this->roundTrips.erase(
+		std::remove_if(
+			this->roundTrips.begin(),
+			this->roundTrips.end(),
+			[&start](int64_t const &time) { return time < start; }
+			),
+		this->roundTrips.end()
+		);
+
+	return 3-this->roundTrips.size();
+}
+bool SimBroker::PDT() { return this->isPDT; }
 
 void SimBroker::enableInstaFill() { this->instaFill = true; }
 void SimBroker::disableInstaFill() { this->instaFill = false; }
@@ -545,6 +597,10 @@ double SimBroker::getInterestRate() { return this->interestRate; }
 void SimBroker::setInitialMarginRequirement(double req) { this->initialMarginRequirement = req; }
 double SimBroker::getInitialMarginRequirement() { return this->initialMarginRequirement; }
 void SimBroker::setMarginCallHandler(std::function<void()> func) {
-  this->marginCallHandler = func;  
+  this->marginCallHandler = func;
   this->marginCallHandlerDefined = true;
+}
+void SimBroker::setPDTCallHandler(std::function<void()> func) {
+  this->PDTCallHandler = func;
+  this->PDTCallHandlerDefined = true;
 }
