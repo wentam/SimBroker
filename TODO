@@ -1,0 +1,4 @@
+stop order tests and support
+stop limit tests and support
+order filling: go second-by-second instead of relevantStart relevantEnd?
+order filling: don't start from the beginning every time?

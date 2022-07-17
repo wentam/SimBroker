@@ -1591,6 +1591,198 @@ int main() {
     return o.status != SimBroker::OrderStatus::REJECTED;
   }, "Limit sell orders are not rejected if we have enough shares");
 
+  // Stop buy orders
+  printf(BYEL "\nStop buy orders: \n" RESET);
+
+	test([&mSource]() {
+	  SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1644854400, true); // Feb 14 11am EST
+	  simBroker.addFunds(200000);
+
+		SimBroker::OrderPlan p = {};
+		p.symbol = "SPY";
+		p.qty = 1;
+		p.type = SimBroker::OrderType::STOP;
+		p.stopPrice = 300;
+
+		auto oid = simBroker.placeOrder(p);
+		simBroker.updateClock(simBroker.getClock()+3600);
+		auto o = simBroker.getOrder(oid);
+
+		return o.filledQty == 1 && simBroker.getPositions().size() == 1 && simBroker.getPositions().back().qty == 1;
+	}, "Stop buy orders placed below the current market price (remaining below) fill");
+
+	test([&mSource]() {
+	  SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1644854400, true); // Feb 14 11am EST
+	  simBroker.addFunds(200000);
+
+		SimBroker::OrderPlan p = {};
+		p.symbol = "SPY";
+		p.qty = 1;
+		p.type = SimBroker::OrderType::STOP;
+		p.stopPrice = 500;
+
+		auto oid = simBroker.placeOrder(p);
+		simBroker.updateClock(simBroker.getClock()+3600);
+		auto o = simBroker.getOrder(oid);
+
+		return o.filledQty == 0 && simBroker.getPositions().size() == 0;
+	}, "Stop buy orders placed above the current market price (remaining above) do not fill");
+
+	test([&mSource]() {
+	  SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1644854400, true); // Feb 14 11am EST
+	  simBroker.addFunds(200000);
+
+		// price now 437.88
+
+		SimBroker::OrderPlan p = {};
+		p.symbol = "SPY";
+		p.qty = 1;
+		p.type = SimBroker::OrderType::STOP;
+		p.stopPrice = 438.2;
+
+		auto oid = simBroker.placeOrder(p);
+		simBroker.updateClock(simBroker.getClock()+3600);
+		// price now 440.18
+		auto o = simBroker.getOrder(oid);
+
+		return o.filledQty == 1 && simBroker.getPositions().size() == 1 && simBroker.getPositions().back().qty == 1;
+	}, "Stop buy orders placed above the current market price that later become below do fill");
+
+	test([&mSource]() {
+	  SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1644854400, true); // Feb 14 11am EST
+	  simBroker.addFunds(200000);
+
+		double bp = simBroker.getBuyingPower();
+
+		SimBroker::OrderPlan p = {};
+		p.symbol = "SPY";
+		p.qty = 1;
+		p.type = SimBroker::OrderType::STOP;
+		p.stopPrice = 500;
+
+		auto oid = simBroker.placeOrder(p);
+		simBroker.updateClock(simBroker.getClock()+3600);
+		auto o = simBroker.getOrder(oid);
+
+		return dround(simBroker.getBuyingPower(), 5) == dround(bp-((p.stopPrice*p.qty)*1.025), 5);
+	}, "Unfilled stop buy orders reduce buying power by (stopPrice*qty)*1.025");
+
+	test([&mSource]() {
+	  SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1644854400, true); // Feb 14 11am EST
+	  simBroker.addFunds(200000);
+
+		// price now 437.88
+	
+		double bp = simBroker.getBuyingPower();
+
+		SimBroker::OrderPlan p = {};
+		p.symbol = "SPY";
+		p.qty = 1;
+		p.type = SimBroker::OrderType::STOP;
+		p.stopPrice = 300;
+
+		auto oid = simBroker.placeOrder(p);
+		simBroker.updateClock(simBroker.getClock()+3600);
+		// price now 440.18
+		auto o = simBroker.getOrder(oid);
+
+		double roughTarget = bp-(437.88*p.qty);
+
+		return simBroker.getBuyingPower() > roughTarget-0.5 &&
+		       simBroker.getBuyingPower() < roughTarget+0.5;
+	}, "Filled stop buy orders reduce buying power by the value of the purchase");
+
+	test([&mSource]() {
+	  SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1644854400, true); // Feb 14 11am EST
+	  simBroker.addFunds(15000);
+
+		// price now 437.88	
+		double bp = simBroker.getBuyingPower();
+
+		SimBroker::OrderPlan p = {};
+		p.symbol = "SPY";
+		p.qty = 51;
+		p.type = SimBroker::OrderType::STOP;
+		p.stopPrice = 300;
+
+		auto oid = simBroker.placeOrder(p);
+		simBroker.updateClock(simBroker.getClock()+3600);
+		// price now 440.18
+		auto o = simBroker.getOrder(oid);
+
+		return o.status == SimBroker::OrderStatus::REJECTED && o.filledQty == 0;
+	}, "Stop buy orders are rejected if we can't afford it (based on stop price)");
+
+  // Stop sell orders
+  printf(BYEL "\nStop sell orders: \n" RESET);
+
+	test([&mSource]() {
+	  SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1644854400, true); // Feb 14 11am EST
+	  simBroker.addFunds(200000);
+
+		SimBroker::OrderPlan p = {};
+		p.symbol = "SPY";
+		p.qty = -1;
+		p.type = SimBroker::OrderType::STOP;
+		p.stopPrice = 500;
+
+		auto oid = simBroker.placeOrder(p);
+		simBroker.updateClock(simBroker.getClock()+3600);
+		auto o = simBroker.getOrder(oid);
+
+		return o.filledQty == 1 && simBroker.getPositions().size() == 1 && simBroker.getPositions().back().qty == 1;
+	}, "Stop sell orders placed above the current market price (remaining above) fill");
+
+	test([&mSource]() {
+		SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1644854400, true); // Feb 14 11am EST
+		simBroker.addFunds(200000);
+
+		SimBroker::OrderPlan p = {};
+		p.symbol = "SPY";
+		p.qty = -1;
+		p.type = SimBroker::OrderType::STOP;
+		p.stopPrice = 300;
+
+		auto oid = simBroker.placeOrder(p);
+		simBroker.updateClock(simBroker.getClock()+3600);
+		auto o = simBroker.getOrder(oid);
+
+		return o.filledQty == 0 && simBroker.getPositions().size() == 0;
+	}, "Stop sell orders placed below the current market price (remaining below) do not fill");
+
+	test([&mSource]() {
+	  SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1644854400-3600, true); // Feb 14 10am EST
+	  simBroker.addFunds(200000);
+
+		// price now 440ish
+
+		SimBroker::OrderPlan p = {};
+		p.symbol = "SPY";
+		p.qty = 1;
+		p.type = SimBroker::OrderType::STOP;
+		p.stopPrice = 438.8;
+
+		auto oid = simBroker.placeOrder(p);
+		simBroker.updateClock(simBroker.getClock()+3600);
+		// price now 438ish
+		auto o = simBroker.getOrder(oid);
+
+		return o.filledQty == 1 && simBroker.getPositions().size() == 1 && simBroker.getPositions().back().qty == 1;
+	}, "Stop sell orders placed below the current market price that later become above do fill");
+
+	// TODO: Unfilled stop sell orders while owning 0 of the stock reduce buying power by (stopPrice*qty)*1.03
+	// TODO: Unfilled stop sell orders while owning some of the stock reduce buying power by (stopPrice*qty)*1.03??
+	// TODO: Filled stop sell orders while owning 0 of the stock increase buying power by the value of the sale???
+	// TODO: Filled stop sell orders while owning some of the stock increase buying power by the value of the sale
+
+  // TODO: Stop limit buy orders
+  printf(BYEL "\nStop limit buy orders: \n" RESET);
+
+  // TODO: Stop limit sell orders
+  printf(BYEL "\nStop limit sell orders: \n" RESET);
+
+	// Stop buy orders fill if we go above threshold
+
   // Market phases
   printf(BYEL "\nMarket phases: \n" RESET);
 
