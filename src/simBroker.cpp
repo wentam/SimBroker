@@ -221,7 +221,6 @@ void SimBroker::eachBar(std::string ticker, uint64_t startTime, std::function<bo
     SimBrokerStockDataSource::Bar bar;
     if (bars.size() > 0) { barIndex++; bar = bars.at(barIndex); }
     for (uint64_t bt = (chunkStart/60)*60; bt < chunkEnd; bt += 60) {
-			if (myPrevBarExists && myPrevBar.time == myBar.time) continue;
       if (bt < chunkStart) continue;
       if (bt <= lastChunkEnd && lastChunkEnd != 0) continue;
       while (barIndex >= 0 && bt >= bar.time+60 && barIndex+1 < (int64_t)bars.size()) { barIndex++; bar = bars.at(barIndex);}
@@ -243,6 +242,7 @@ void SimBroker::eachBar(std::string ticker, uint64_t startTime, std::function<bo
         else continue;
       }
 
+			if (myPrevBarExists && myPrevBar.time == myBar.time) continue;
       if (!func(myBar)) return false;
 
       if (myPrevBarExists && myPrevBar.time+60 != myBar.time) 
