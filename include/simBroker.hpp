@@ -173,6 +173,8 @@ class SimBroker {
     // Margin
     void setInitialMarginRequirement(double req);
     double getInitialMarginRequirement();
+    void setMaintenanceMarginRequirement(double req);
+    double getMaintenanceMarginRequirement();
 
     void setInterestRate(double rate);
     double getInterestRate();

@@ -424,6 +424,7 @@ double SimBroker::getLoan() {
 
 bool SimBroker::checkForMarginCall() {
   double loan = this->getLoan();
+
   if (!this->marginEnabled || loan <= 0) return false;
   return this->getEquity()/loan < this->maintenanceMarginRequirement;
 }
@@ -606,6 +607,8 @@ void SimBroker::setInterestRate(double rate) { this->interestRate = rate; }
 double SimBroker::getInterestRate() { return this->interestRate; }
 void SimBroker::setInitialMarginRequirement(double req) { this->initialMarginRequirement = req; }
 double SimBroker::getInitialMarginRequirement() { return this->initialMarginRequirement; }
+void SimBroker::setMaintenanceMarginRequirement(double req) { this->maintenanceMarginRequirement = req; }
+double SimBroker::getMaintenanceMarginRequirement() { return this->maintenanceMarginRequirement; }
 void SimBroker::setMarginCallHandler(std::function<void()> func) {
   this->marginCallHandler = func;
   this->marginCallHandlerDefined = true;
