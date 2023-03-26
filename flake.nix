@@ -3,7 +3,7 @@
     nixpkgs.url = github:NixOS/nixpkgs/nixos-unstable;
     flake-utils.url = "github:numtide/flake-utils";
 
-    f-alpaca-api-client.url = git+ssh://wentam@wentam.net/mnt/NAS/git-host/alpaca-api-client.git;
+    f-alpaca-api-client.url = git+ssh://wentam.net/mnt/NAS/git-host/alpaca-api-client.git;
     f-alpaca-api-client.inputs.nixpkgs.follows = "nixpkgs";
   };
 
