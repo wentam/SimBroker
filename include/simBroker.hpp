@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include <cstdint>
 
 // TODO: terminology for assets is inconsistant: "symbol" "ticker". "asset" is probably a better
 // term

@@ -259,7 +259,7 @@ void SimBroker::eachBar(std::string ticker, uint64_t startTime, std::function<bo
   });
 }
 
-double SimBroker::estimateFillRate(SimBrokerStockDataSource::Bar b) {
+double SimBroker::estimateFillRate([[maybe_unused]]SimBrokerStockDataSource::Bar b) {
   // TODO incomplete model, as this assumes the entire market is trading exclusively with us.
   // (this is a good upper bound, however)
   //return (b.volume/60);

@@ -11,7 +11,7 @@
   (flake-utils.lib.eachDefaultSystem (system: let pkgs = nixpkgs.legacyPackages.${system}; in rec {
 
     # Shell
-    devShells.default = pkgs.gcc12Stdenv.mkDerivation {
+    devShells.default = pkgs.gcc13Stdenv.mkDerivation {
       name = "build";
       buildInputs = with pkgs; [
         # For mkTestData
@@ -28,7 +28,7 @@
 
       src = ./.;
 
-      buildInputs = with pkgs; [ gcc12 ];
+      buildInputs = with pkgs; [ gcc13 ];
 
       dontConfigure = true;
       makeFlags = [ "-j12" ];
