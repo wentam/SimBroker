@@ -15,22 +15,22 @@ SimBroker::SimBroker(SimBrokerStockDataSource* dataSource, uint64_t startTime, b
 {};
 
 void SimBroker::chargeDayInterest() {
-  // Charge interest on margin usage 
-  double shortPositionSaleValue = 0.0; 
+  // Charge interest on margin usage
+  currency shortPositionSaleValue = 0.0;
   for (auto p : this->getPositions()) {
     if (p.qty < 0) shortPositionSaleValue -= p.avgEntryPrice*p.qty;
   }
 
-  double cash = this->balance-shortPositionSaleValue;
+  currency cash = this->balance-shortPositionSaleValue;
   if (cash < 0) {
-    double interest = (fabs(cash)*this->interestRate)/360;
+    cpp_dec_float_100 interest = (fabs(cash)*this->interestRate)/360;
     this->balance -= interest;
   }
 
   // Charge short position borrow fees
   for (auto pos : this->getPositions()) {
     if (pos.qty < 0) {
-      double price = this->stockDataSource->getPrice(pos.symbol, this->clock);
+      currency price = this->stockDataSource->getPrice(pos.symbol, this->clock);
       uint64_t qty = labs(pos.qty);
       if (this->shortRoundLotFee) qty = (((qty-1)/100)*100)+100;
 
@@ -109,7 +109,7 @@ uint64_t SimBroker::placeOrder(OrderPlan p) {
 
   if (o.qty > 0) {
     // Set status for buy orders
-    double price = this->stockDataSource->getPrice(o.symbol, this->clock);
+    currency price = this->stockDataSource->getPrice(o.symbol, this->clock);
     if (price < 0) this->setOrderStatus(o, SimBroker::OrderStatus::REJECTED, this->clock);
     if (price > o.limitPrice && o.type == OrderType::LIMIT) price = o.limitPrice;
 
@@ -124,7 +124,7 @@ uint64_t SimBroker::placeOrder(OrderPlan p) {
     this->marginEnabled = me;
   } else if (o.qty < 0) {
     // Set status for sell orders
-    double price = this->stockDataSource->getPrice(o.symbol, this->clock);
+    currency price = this->stockDataSource->getPrice(o.symbol, this->clock);
     int64_t existingQty = 0;
     for (auto p : this->getPositions())  { if (p.symbol == o.symbol) existingQty += p.qty; }
 
@@ -144,7 +144,7 @@ uint64_t SimBroker::placeOrder(OrderPlan p) {
         this->setOrderStatus(o, SimBroker::OrderStatus::REJECTED, this->clock);
       if (existingQty > 0)
         this->setOrderStatus(o, SimBroker::OrderStatus::REJECTED, this->clock);
-      if (this->getBuyingPower() < labs(o.qty*price))
+      if (this->getBuyingPower() < abs(o.qty*price))
         this->setOrderStatus(o, SimBroker::OrderStatus::REJECTED, this->clock);
     } else {
       // Long order
@@ -234,7 +234,7 @@ void SimBroker::eachBar(std::string ticker, uint64_t startTime, std::function<bo
         // We didn't find any bars yet, so we call getPrice() to fill the bar (which should fall back to hour bars etc)
         // volume of zero, because if a trade occured there would be a bar
         // TODO: we could fall back on hour/day bars ourselves if we don't want to trust the stockDataSource to do it right
-        double price;
+        currency price;
         if (!myPrevBarExists) price = this->stockDataSource->getPrice(ticker, bt);
         else price = myPrevBar.closePrice;
 
@@ -259,7 +259,7 @@ void SimBroker::eachBar(std::string ticker, uint64_t startTime, std::function<bo
   });
 }
 
-double SimBroker::estimateFillRate([[maybe_unused]]SimBrokerStockDataSource::Bar b) {
+cpp_dec_float_100 SimBroker::estimateFillRate([[maybe_unused]]SimBrokerStockDataSource::Bar b) {
   // TODO incomplete model, as this assumes the entire market is trading exclusively with us.
   // (this is a good upper bound, however)
   //return (b.volume/60);
@@ -271,7 +271,7 @@ void SimBroker::updateOrderFillState(Order& o) {
 
   int64_t startQty = o.filledQty;
   uint64_t filledSeconds = 0;
-  double avgPrice = 0.0;
+  currency avgPrice = 0.0;
   int64_t filledShares = 0;
 
   uint32_t i = 0;
@@ -323,7 +323,7 @@ void SimBroker::updateOrderFillState(Order& o) {
 					avgPrice += bar.openPrice*relevantSeconds;
 
         if (this->instaFill) filledShares = llabs(o.qty);
-        else filledShares += (estimateFillRate(bar)*relevantSeconds);
+        else filledShares += static_cast<int64_t>(round(estimateFillRate(bar)*relevantSeconds));
       }
 
       if (filledShares >= llabs(o.qty)) {
@@ -375,8 +375,8 @@ void SimBroker::updateOrderTIF(Order& o) {
   }
 }
 
-double SimBroker::getTotalCostBasis() {
-  double r = 0;
+currency SimBroker::getTotalCostBasis() {
+  currency r = 0;
   for (auto& p : this->positions) {
     r += p.costBasis; 
   }
@@ -402,16 +402,16 @@ void SimBroker::updateState() {
 	}
 }
 
-double SimBroker::getLoan() {
+currency SimBroker::getLoan() {
   if (!this->marginEnabled) return 0;
-  double loan = 0;
+  currency loan = 0;
 
-  double shortPositionSaleValue = 0.0;
+  currency shortPositionSaleValue = 0.0;
   for (auto p : this->getPositions()) {
     if (p.qty < 0) shortPositionSaleValue -= p.avgEntryPrice*p.qty;
   }
 
-  double marginLoan = -(this->balance-shortPositionSaleValue);
+  currency marginLoan = -(this->balance-shortPositionSaleValue);
   if (marginLoan < 0) marginLoan = 0;
   loan += marginLoan;
 
@@ -423,21 +423,21 @@ double SimBroker::getLoan() {
 }
 
 bool SimBroker::checkForMarginCall() {
-  double loan = this->getLoan();
+  currency loan = this->getLoan();
 
   if (!this->marginEnabled || loan <= 0) return false;
   return this->getEquity()/loan < this->maintenanceMarginRequirement;
 }
 
-double SimBroker::getBalance() {
+currency SimBroker::getBalance() {
   return this->balance;
 }
 
-double SimBroker::getEquity() {
-  double equity = this->balance;
+currency SimBroker::getEquity() {
+  currency equity = this->balance;
   
   for (auto& p : this->positions) {
-    double value = this->stockDataSource->getPrice(p.symbol, this->clock);
+    currency value = this->stockDataSource->getPrice(p.symbol, this->clock);
     equity += p.qty*value;
   }
 
@@ -455,23 +455,23 @@ SimBroker::Order SimBroker::getOrder(uint64_t id) {
   return {};
 }
 
-double SimBroker::getBuyingPower() {
-  double buyingPower = this->balance;
+currency SimBroker::getBuyingPower() {
+  currency buyingPower = this->balance;
 
   if (this->marginEnabled) {
-    double assetValue = 0; 
+    currency assetValue = 0; 
     for (auto p : this->getPositions()) {
-      double price = this->stockDataSource->getPrice(p.symbol, this->clock);
+      currency price = this->stockDataSource->getPrice(p.symbol, this->clock);
       assetValue += p.qty*price;
     }
 
     // We can't use the cash we earned from selling borrowed shares as collateral before the short is filled
-    double shortPositionSaleValue = 0.0; 
+    currency shortPositionSaleValue = 0.0; 
     for (auto p : this->getPositions()) {
       if (p.qty < 0) shortPositionSaleValue -= p.avgEntryPrice*p.qty;
     }
 
-    double availableCollateral = (this->getBalance()-shortPositionSaleValue)+assetValue;
+    currency availableCollateral = (this->getBalance()-shortPositionSaleValue)+assetValue;
 
     buyingPower = (availableCollateral/this->initialMarginRequirement)-assetValue;
   }
@@ -490,7 +490,7 @@ double SimBroker::getBuyingPower() {
     int64_t sharesToBeFilled = labs(o.qty-o.filledQty);
 
     if (sharesToBeFilled != 0) {
-      double price = this->stockDataSource->getPrice(o.symbol, this->clock); 
+      currency price = this->stockDataSource->getPrice(o.symbol, this->clock); 
       if (o.type == SimBroker::OrderType::LIMIT) {
         buyingPower -= o.limitPrice*sharesToBeFilled;
       } else {
@@ -502,7 +502,7 @@ double SimBroker::getBuyingPower() {
   return buyingPower;
 }
 
-void SimBroker::addToPosition(std::string symbol, int64_t qty, double avgPrice) {
+void SimBroker::addToPosition(std::string symbol, int64_t qty, currency avgPrice) {
 
   // Try to apply this to an existing position
   bool exists = false;
@@ -599,16 +599,16 @@ void SimBroker::enableShortRoundLotFee() { this->shortRoundLotFee = true; }
 void SimBroker::disableShortRoundLotFee() { this->shortRoundLotFee = false; }
 bool SimBroker::shortRoundLotFeeEnabled() { return this->shortRoundLotFee; }
 uint64_t SimBroker::getClock() { return this->clock; }
-void SimBroker::addFunds(double chedda) { this->balance += chedda; }
-void SimBroker::rmFunds(double chedda) { this->balance -= chedda; }
+void SimBroker::addFunds(currency chedda) { this->balance += chedda; }
+void SimBroker::rmFunds(currency chedda) { this->balance -= chedda; }
 std::vector<SimBroker::Order> SimBroker::getOrders() { return this->orders; }
 std::vector<SimBroker::Position> SimBroker::getPositions() { return this->positions; }
-void SimBroker::setInterestRate(double rate) { this->interestRate = rate; }
-double SimBroker::getInterestRate() { return this->interestRate; }
-void SimBroker::setInitialMarginRequirement(double req) { this->initialMarginRequirement = req; }
-double SimBroker::getInitialMarginRequirement() { return this->initialMarginRequirement; }
-void SimBroker::setMaintenanceMarginRequirement(double req) { this->maintenanceMarginRequirement = req; }
-double SimBroker::getMaintenanceMarginRequirement() { return this->maintenanceMarginRequirement; }
+void SimBroker::setInterestRate(cpp_dec_float_100 rate) { this->interestRate = rate; }
+cpp_dec_float_100 SimBroker::getInterestRate() { return this->interestRate; }
+void SimBroker::setInitialMarginRequirement(cpp_dec_float_100 req) { this->initialMarginRequirement = req; }
+cpp_dec_float_100 SimBroker::getInitialMarginRequirement() { return this->initialMarginRequirement; }
+void SimBroker::setMaintenanceMarginRequirement(cpp_dec_float_100 req) { this->maintenanceMarginRequirement = req; }
+cpp_dec_float_100 SimBroker::getMaintenanceMarginRequirement() { return this->maintenanceMarginRequirement; }
 void SimBroker::setMarginCallHandler(std::function<void()> func) {
   this->marginCallHandler = func;
   this->marginCallHandlerDefined = true;

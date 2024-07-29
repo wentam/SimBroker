@@ -37,7 +37,7 @@ double dround( double f, int places ) {
     return std::round(f*n)/n;
 }
 
-bool assert(std::string msg, bool condition) {
+bool massert(std::string msg, bool condition) {
   if (condition) {
     printf(BGRN "[ TRUE ]" RESET " %s\n", msg.c_str());
     pass++;
@@ -207,7 +207,7 @@ class TestSimBrokerStockDataSource : SimBrokerStockDataSource {
       return r;
     }
 
-    double getPrice(std::string ticker, uint64_t time) {
+    currency getPrice(std::string ticker, uint64_t time) {
       for (auto bar : bars[ticker+"1Min"]) {
         if (bar.time >= time) return bar.openPrice;
       }
@@ -215,7 +215,7 @@ class TestSimBrokerStockDataSource : SimBrokerStockDataSource {
       return 0.0;
     }
 
-    double getAssetBorrowRate([[maybe_unused]]std::string ticker, [[maybe_unused]]uint64_t time) { return 0.03; }
+    cpp_dec_float_100 getAssetBorrowRate([[maybe_unused]]std::string ticker, [[maybe_unused]]uint64_t time) { return 0.03; }
 
     MarketPhase getMarketPhase(uint64_t time) {
       for (auto cal : calendar) {
@@ -330,13 +330,13 @@ class AlwaysBarsSource : SimBrokerStockDataSource {
     return r;
   }
 
-  double getPrice(std::string ticker, uint64_t time) {
-    double p = mSource.getPrice(ticker, time);
+  currency getPrice(std::string ticker, uint64_t time) {
+    currency p = mSource.getPrice(ticker, time);
     if (p == 0.0) return 440;
     return p;
   }
 
-  double getAssetBorrowRate([[maybe_unused]]std::string ticker, [[maybe_unused]]uint64_t time) { return 0.03; }
+  cpp_dec_float_100 getAssetBorrowRate([[maybe_unused]]std::string ticker, [[maybe_unused]]uint64_t time) { return 0.03; }
 
   MarketPhase getMarketPhase(uint64_t time) {
     return mSource.getMarketPhase(time);
@@ -374,13 +374,13 @@ class AlwaysBarsSource : SimBrokerStockDataSource {
 
 bool test(std::function<bool()> func, std::string msg) {
   try {
-    return assert(msg, func());
+    return massert(msg, func());
   } catch (const std::exception &exc) {
     printf("Exception: %s\n", exc.what());
-    return assert(msg, false);
+    return massert(msg, false);
   } catch (...) {
     printf("Unknown exception occured!\n");
-    return assert(msg, false);
+    return massert(msg, false);
   }
 }
 
@@ -687,7 +687,7 @@ int main() {
     auto o2 = simBroker.getOrder(oid2);
     auto o3 = simBroker.getOrder(oid3);
 
-    double correctAvgEntryPrice = (o1.filledAvgPrice+o2.filledAvgPrice+o3.filledAvgPrice)/3;
+    currency correctAvgEntryPrice = (o1.filledAvgPrice+o2.filledAvgPrice+o3.filledAvgPrice)/3;
 
     for (auto pos : simBroker.getPositions()) {
       if (pos.symbol == "SPY" &&
@@ -748,7 +748,7 @@ int main() {
     simBroker.addFunds(500000);
     simBroker.updateClock(1645108739);
 
-    double bp = simBroker.getBuyingPower();
+    currency bp = simBroker.getBuyingPower();
 
     SimBroker::OrderPlan marketp = {};
     marketp.symbol = "SPY";
@@ -949,7 +949,7 @@ int main() {
     simBroker.addFunds(500000);
     simBroker.updateClock(1645108739);
 
-    double bp = simBroker.getBuyingPower();
+    currency bp = simBroker.getBuyingPower();
 
     SimBroker::OrderPlan marketp = {};
     marketp.symbol = "SPY";
@@ -1070,7 +1070,7 @@ int main() {
     auto o1 = simBroker.getOrder(oid1);
     auto o2 = simBroker.getOrder(oid2);
   
-    double correctAvgEntryPrice = (o1.filledAvgPrice+o2.filledAvgPrice)/2;
+    currency correctAvgEntryPrice = (o1.filledAvgPrice+o2.filledAvgPrice)/2;
 
     for (auto pos : simBroker.getPositions()) {
       if (pos.symbol == "SPY" && 
@@ -1244,7 +1244,7 @@ int main() {
     simBroker.placeOrder(marketp); 
     simBroker.updateClock(simBroker.getClock()+3600);
 
-    double buyBalance = simBroker.getBalance();
+    currency buyBalance = simBroker.getBalance();
 
     SimBroker::OrderPlan sellp = marketp;
     sellp.qty = -marketp.qty;
@@ -1271,7 +1271,7 @@ int main() {
     marketp.timeInForce = SimBroker::OrderTimeInForce::GOOD_TILL_CANCELLED;
     simBroker.placeOrder(marketp);
 
-    double bp = simBroker.getBuyingPower();
+    currency bp = simBroker.getBuyingPower();
 
     SimBroker::OrderPlan sellp = marketp;
     sellp.qty = -marketp.qty;
@@ -1302,7 +1302,7 @@ int main() {
     sellp.qty = -marketp.qty;
     //sellp.side = SimBroker::OrderSide::SELL;
 
-    double bp = simBroker.getBuyingPower();
+    currency bp = simBroker.getBuyingPower();
     auto oid = simBroker.placeOrder(sellp); 
     simBroker.updateClock(simBroker.getClock()+3600);
 
@@ -1465,7 +1465,7 @@ int main() {
     simBroker.placeOrder(marketp);
     simBroker.updateClock(simBroker.getClock()+3600);
 
-    double buyBalance = simBroker.getBalance();
+    currency buyBalance = simBroker.getBalance();
 
     SimBroker::OrderPlan sellp = marketp;
     sellp.qty = -marketp.qty;
@@ -1494,7 +1494,7 @@ int main() {
     marketp.timeInForce = SimBroker::OrderTimeInForce::GOOD_TILL_CANCELLED;
     simBroker.placeOrder(marketp);
 
-    double bp = simBroker.getBuyingPower();
+    currency bp = simBroker.getBuyingPower();
 
     SimBroker::OrderPlan sellp = marketp;
     sellp.qty = -marketp.qty;
@@ -1521,7 +1521,7 @@ int main() {
     marketp.timeInForce = SimBroker::OrderTimeInForce::GOOD_TILL_CANCELLED;
     simBroker.placeOrder(marketp);
     simBroker.updateClock(simBroker.getClock()+3600);
-    double bp1 = simBroker.getBuyingPower();
+    currency bp1 = simBroker.getBuyingPower();
 
     SimBroker::OrderPlan sellp = marketp;
     sellp.qty = -marketp.qty;
@@ -1531,7 +1531,7 @@ int main() {
     simBroker.placeOrder(sellp);
     simBroker.updateClock(simBroker.getClock()+3600);
 
-    double bp2 = simBroker.getBuyingPower();
+    currency bp2 = simBroker.getBuyingPower();
     //printf("%lf->%lf\n", bp1, bp2);
     return bp1 == bp2;
   }, "Unfilled limit sell orders don't touch buying power");
@@ -1556,7 +1556,7 @@ int main() {
     sellp.type = SimBroker::OrderType::LIMIT;
     sellp.limitPrice = 1;
 
-    double bp = simBroker.getBuyingPower();
+    currency bp = simBroker.getBuyingPower();
     auto oid = simBroker.placeOrder(sellp);
     simBroker.updateClock(simBroker.getClock()+3600);
 
@@ -1652,7 +1652,7 @@ int main() {
 	  SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1644854400, true); // Feb 14 11am EST
 	  simBroker.addFunds(200000);
 
-		double bp = simBroker.getBuyingPower();
+		currency bp = simBroker.getBuyingPower();
 
 		SimBroker::OrderPlan p = {};
 		p.symbol = "SPY";
@@ -1664,7 +1664,7 @@ int main() {
 		simBroker.updateClock(simBroker.getClock()+3600);
 		auto o = simBroker.getOrder(oid);
 
-		return dround(simBroker.getBuyingPower(), 5) == dround(bp-((p.stopPrice*p.qty)*1.025), 5);
+		return simBroker.getBuyingPower() == bp-((p.stopPrice*p.qty)*1.025);
 	}, "Unfilled stop buy orders reduce buying power by (stopPrice*qty)*1.025");
 
 	test([&mSource]() {
@@ -1673,7 +1673,7 @@ int main() {
 
 		// price now 437.88
 	
-		double bp = simBroker.getBuyingPower();
+		currency bp = simBroker.getBuyingPower();
 
 		SimBroker::OrderPlan p = {};
 		p.symbol = "SPY";
@@ -1686,7 +1686,7 @@ int main() {
 		// price now 440.18
 		auto o = simBroker.getOrder(oid);
 
-		double roughTarget = bp-(437.88*p.qty);
+		currency roughTarget = bp-(437.88*p.qty);
 
 		return simBroker.getBuyingPower() > roughTarget-0.5 &&
 		       simBroker.getBuyingPower() < roughTarget+0.5;
@@ -1697,7 +1697,7 @@ int main() {
 	  simBroker.addFunds(15000);
 
 		// price now 437.88	
-		double bp = simBroker.getBuyingPower();
+		currency bp = simBroker.getBuyingPower();
 
 		SimBroker::OrderPlan p = {};
 		p.symbol = "SPY";
@@ -2096,7 +2096,7 @@ int main() {
     limitp.type = SimBroker::OrderType::LIMIT;
     limitp.limitPrice = 1; // This order will never fill
     limitp.timeInForce = SimBroker::OrderTimeInForce::DAY;
-    double bp = simBroker.getBuyingPower();
+    currency bp = simBroker.getBuyingPower();
     auto oid = simBroker.placeOrder(limitp);
 
     simBroker.updateClock(1645713000+(4*3600)); // 4 hours after market open the next day
@@ -2115,10 +2115,10 @@ int main() {
   }, "Enabling margin in the constructor results in a buying power that is double our balance (with default initial margin of 0.5)");
   test([&mSource]() {
     SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1645650000-(4*3600), true); // 4 hours before market close
-    simBroker.setInitialMarginRequirement(0.7);
-    simBroker.addFunds(1000);
+    simBroker.setInitialMarginRequirement(cpp_dec_float_100("0.7"));
+    simBroker.addFunds(currency("1000"));
 
-    return simBroker.getBuyingPower() == (1000/0.7);
+    return simBroker.getBuyingPower() == currency("1000")/currency("0.7");
   }, "With margin enabled and an initial margin requirement of 0.7 we have the correct buying power");
 
   test([&mSource]() {
@@ -2214,9 +2214,9 @@ int main() {
     p.qty = 2;
     simBroker.placeOrder(p);
     simBroker.updateClock(simBroker.getClock()+3600); // 1 hour to fill the order
-    double b1 = simBroker.getBalance(); 
+    currency b1 = simBroker.getBalance(); 
     simBroker.updateClock(simBroker.getClock()+((3600*24)*7)); // 1 week to give it some time to accrue interest
-    double b2 = simBroker.getBalance(); 
+    currency b2 = simBroker.getBalance(); 
 
     return b1 == b2;
   }, "Buying stocks just within available cash does not charge interest");
@@ -2232,13 +2232,13 @@ int main() {
     auto oid = simBroker.placeOrder(p);
     simBroker.updateClock(simBroker.getClock()+(3600*2)); // 2 hours to fill the order
     auto o = simBroker.getOrder(oid);
-    double b1 = simBroker.getBalance(); 
+    currency b1 = simBroker.getBalance(); 
     simBroker.updateClock(simBroker.getClock()+((3600*24)*7)); // 1 week to give it some time to accrue interest
-    double b2 = simBroker.getBalance(); 
+    currency b2 = simBroker.getBalance(); 
 
-    double loaned = (o.filledQty*o.filledAvgPrice)-1000;
+    currency loaned = (o.filledQty*o.filledAvgPrice)-1000;
     // 5 days worth of interest (not 7 because weekend)
-    double interestOwed = 0;
+    currency interestOwed = 0;
     for (int i = 0; i < 5; i++) {
       interestOwed += (((loaned+interestOwed)*0.0375)/360.0);
     }
@@ -2258,13 +2258,13 @@ int main() {
     auto oid = simBroker.placeOrder(p);
     simBroker.updateClock(simBroker.getClock()+(3600*2)); // 2 hours to fill the order
     auto o = simBroker.getOrder(oid);
-    double b1 = simBroker.getBalance(); 
+    currency b1 = simBroker.getBalance(); 
     simBroker.updateClock(simBroker.getClock()+((3600*24)*7)); // 1 week to give it some time to accrue interest
-    double b2 = simBroker.getBalance(); 
+    currency b2 = simBroker.getBalance(); 
 
-    double loaned = (o.filledQty*o.filledAvgPrice)-1000;
+    currency loaned = (o.filledQty*o.filledAvgPrice)-1000;
     // 5 days worth of interest (not 7 because weekend)
-    double interestOwed = 0;
+    currency interestOwed = 0;
     for (int i = 0; i < 5; i++) {
       interestOwed += (((loaned+interestOwed)*0.05)/360.0);
     }
@@ -2415,7 +2415,7 @@ int main() {
     SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1645650000-(4*3600), true); // 4 hours before market close
     simBroker.addFunds(9000000);
 
-    double bp1 = simBroker.getBuyingPower();
+    currency bp1 = simBroker.getBuyingPower();
     SimBroker::OrderPlan p = {};
     p.symbol = "SPY";
     p.qty = -10;
@@ -2423,7 +2423,7 @@ int main() {
     p.limitPrice = 1000; // This order will never fill
     simBroker.placeOrder(p);
     simBroker.updateClock(simBroker.getClock()+3600);
-    double bp2 = simBroker.getBuyingPower();
+    currency bp2 = simBroker.getBuyingPower();
    
     //double price1 = simBroker.getOrder(oid).filledAvgPrice;
     //double price2 = mSource.getPrice("SPY", simBroker.getClock());
@@ -2437,13 +2437,13 @@ int main() {
     SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1645650000-(4*3600), true); // 4 hours before market close
     simBroker.addFunds(9000000);
 
-    double bp1 = simBroker.getBuyingPower();
+    currency bp1 = simBroker.getBuyingPower();
     SimBroker::OrderPlan p = {};
     p.symbol = "SPY";
     p.qty = -10;
     simBroker.placeOrder(p);
     simBroker.updateClock(simBroker.getClock()+3600);
-    double bp2 = simBroker.getBuyingPower();
+    currency bp2 = simBroker.getBuyingPower();
  
     //double price1 = simBroker.getOrder(oid).filledAvgPrice;
     //double price2 = mSource.getPrice("SPY", simBroker.getClock());
@@ -2458,7 +2458,7 @@ int main() {
     SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1645650000-(4*3600), true); // 4 hours before market close
     simBroker.addFunds(9000000);
 
-    double equity1 = simBroker.getEquity();
+    currency equity1 = simBroker.getEquity();
     SimBroker::OrderPlan p = {};
     p.symbol = "SPY";
     p.qty = -10;
@@ -2466,7 +2466,7 @@ int main() {
     p.limitPrice = 1000; // This order will never fill
     simBroker.placeOrder(p);
     simBroker.updateClock(simBroker.getClock()+3600);
-    double equity2 = simBroker.getEquity();
+    currency equity2 = simBroker.getEquity();
 
     return equity1 == equity2;
   }, "Unfilled short orders have no effect on equity");
@@ -2475,51 +2475,51 @@ int main() {
     SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1645650000-(4*3600), true); // 4 hours before market close
     simBroker.addFunds(9000000);
 
-    double equity1 = simBroker.getEquity();
+    currency equity1 = simBroker.getEquity();
     SimBroker::OrderPlan p = {};
     p.symbol = "SPY";
     p.qty = -10;
     auto oid = simBroker.placeOrder(p);
     simBroker.updateClock(simBroker.getClock()+(3600*2));
-    double equity2 = simBroker.getEquity();
+    currency equity2 = simBroker.getEquity();
 
-    double price1 = simBroker.getOrder(oid).filledAvgPrice;
-    double price2 = mSource.getPrice("SPY", simBroker.getClock());
+    currency price1 = simBroker.getOrder(oid).filledAvgPrice;
+    currency price2 = mSource.getPrice("SPY", simBroker.getClock());
 
-    double profit = (price1-price2)*10.0;
+    currency profit = (price1-price2)*10.0;
 
     //printf("%lf->%lf\n", price1, price2);
     //printf("%lf->%lf\n", equity1, equity2);
-    return dround(equity2, 5) == dround(equity1+profit, 5);
+    return equity2 == equity1+profit;
   }, "Shorting a stock that falls results in the correct higher equity"); 
 
   test([&mSource]() {
     SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1646427600-(4*3600), true); // 4 hours before market close
     simBroker.addFunds(9000000);
 
-    double equity1 = simBroker.getEquity();
+    currency equity1 = simBroker.getEquity();
     SimBroker::OrderPlan p = {};
     p.symbol = "SPY";
     p.qty = -10;
     auto oid = simBroker.placeOrder(p);
     simBroker.updateClock(simBroker.getClock()+(3600*2));
-    double equity2 = simBroker.getEquity();
+    currency equity2 = simBroker.getEquity();
 
-    double price1 = simBroker.getOrder(oid).filledAvgPrice;
-    double price2 = mSource.getPrice("SPY", simBroker.getClock());
+    currency price1 = simBroker.getOrder(oid).filledAvgPrice;
+    currency price2 = mSource.getPrice("SPY", simBroker.getClock());
 
-    double profit = (price1-price2)*10.0;
+    currency profit = (price1-price2)*10.0;
 
 //printf("%lf->%lf\n", equity1, equity2);
  //   printf("%lf->%lf\n", price1, price2);
-    return dround(equity2, 5) == dround(equity1+profit, 5) && profit < 0;
+    return equity2 == equity1+profit && profit < 0;
   }, "Shorting a stock that rises results in the correct lower equity"); 
 
   test([&mSource]() {
     SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1646427600-(4*3600), true); // 4 hours before market close
     simBroker.addFunds(9000000);
 
-    double balance1 = simBroker.getBalance();
+    currency balance1 = simBroker.getBalance();
     SimBroker::OrderPlan p = {};
     p.symbol = "SPY";
     p.qty = -10;
@@ -2527,7 +2527,7 @@ int main() {
     p.limitPrice = 1000; // This order will never fill
     simBroker.placeOrder(p);
     simBroker.updateClock(simBroker.getClock()+(3600*2));
-    double balance2 = simBroker.getBalance();
+    currency balance2 = simBroker.getBalance();
 
     return balance2 == balance1;
   }, "Unfilled short orders have no effect on balance");
@@ -2536,14 +2536,14 @@ int main() {
     SimBroker simBroker((SimBrokerStockDataSource*)&mSource, 1646427600-(4*3600), true); // 4 hours before market close
     simBroker.addFunds(9000000);
 
-    double balance1 = simBroker.getBalance();
+    currency balance1 = simBroker.getBalance();
     SimBroker::OrderPlan p = {};
     p.symbol = "SPY";
     p.qty = -10;
     auto oid = simBroker.placeOrder(p);
     simBroker.updateClock(simBroker.getClock()+(3600*2));
-    double price1 = simBroker.getOrder(oid).filledAvgPrice;
-    double balance2 = simBroker.getBalance();
+    currency price1 = simBroker.getOrder(oid).filledAvgPrice;
+    currency balance2 = simBroker.getBalance();
 
     return balance2 >= (balance1+(price1*10))-1 &&
            balance2 <= (balance1+(price1*10))+1;
@@ -2615,15 +2615,15 @@ int main() {
     p.qty = -5;
     auto oid = simBroker.placeOrder(p);
     simBroker.updateClock(simBroker.getClock()+(3600));
-    double filledPrice = simBroker.getOrder(oid).filledAvgPrice;
+    currency filledPrice = simBroker.getOrder(oid).filledAvgPrice;
 
     simBroker.updateClock(simBroker.getClock()+(3600*9)); // Couple hours after postmarket
-    double price = mSource.getPrice("SPY", simBroker.getClock());
-    double interestOwed = ((price*5)*mSource.getAssetBorrowRate("SPY", simBroker.getClock()))/360;
-    double equityShouldBe = (9000000.0+((filledPrice-price)*5.0))-interestOwed;
+    currency price = mSource.getPrice("SPY", simBroker.getClock());
+    currency interestOwed = ((price*5)*mSource.getAssetBorrowRate("SPY", simBroker.getClock()))/360;
+    currency equityShouldBe = (9000000.0+((filledPrice-price)*5.0))-interestOwed;
  
    // printf("%lf->%lf\n", filledPrice, price);
-    return dround(simBroker.getEquity(),5) == dround(equityShouldBe,5);
+    return simBroker.getEquity() == equityShouldBe;
   }, "Filled short orders with round lot fee disabled result in the correct interest being charged");
 
   test([&mSource, &neverShortableSource]() {
@@ -2636,16 +2636,16 @@ int main() {
     p.qty = -5;
     auto oid = simBroker.placeOrder(p);
     simBroker.updateClock(simBroker.getClock()+(3600));
-    double filledPrice = simBroker.getOrder(oid).filledAvgPrice;
+    currency filledPrice = simBroker.getOrder(oid).filledAvgPrice;
 
     simBroker.updateClock(simBroker.getClock()+(3600*9)); // Couple hours after postmarket
-    double price = mSource.getPrice("SPY", simBroker.getClock());
-    double interestOwed = ((price*100)*mSource.getAssetBorrowRate("SPY", simBroker.getClock()))/360;
-    double equityShouldBe = (9000000.0+((filledPrice-price)*5.0))-interestOwed;
+    currency price = mSource.getPrice("SPY", simBroker.getClock());
+    currency interestOwed = ((price*100)*mSource.getAssetBorrowRate("SPY", simBroker.getClock()))/360;
+    currency equityShouldBe = (9000000.0+((filledPrice-price)*5.0))-interestOwed;
  
     //printf("%lf->%lf\n", filledPrice, price);
     //printf("%lf == %lf\n", simBroker.getEquity(), equityShouldBe);
-    return dround(simBroker.getEquity(),5) == dround(equityShouldBe,5);
+    return simBroker.getEquity() == equityShouldBe;
   }, "Filled short orders of qty 5 with round lot fee enabled result in the correct (qty of 100) interest being charged");
 
   test([&mSource, &neverShortableSource]() {
@@ -2658,16 +2658,16 @@ int main() {
     p.qty = -100;
     auto oid = simBroker.placeOrder(p);
     simBroker.updateClock(simBroker.getClock()+(3600));
-    double filledPrice = simBroker.getOrder(oid).filledAvgPrice;
+    currency filledPrice = simBroker.getOrder(oid).filledAvgPrice;
 
     simBroker.updateClock(simBroker.getClock()+(3600*9)); // Couple hours after postmarket
-    double price = mSource.getPrice("SPY", simBroker.getClock());
-    double interestOwed = ((price*100)*mSource.getAssetBorrowRate("SPY", simBroker.getClock()))/360;
-    double equityShouldBe = (9000000.0+((filledPrice-price)*100.0))-interestOwed;
+    currency price = mSource.getPrice("SPY", simBroker.getClock());
+    currency interestOwed = ((price*100)*mSource.getAssetBorrowRate("SPY", simBroker.getClock()))/360;
+    currency equityShouldBe = (9000000.0+((filledPrice-price)*100.0))-interestOwed;
  
     //printf("%lf->%lf\n", filledPrice, price);
     //printf("%lf == %lf\n", simBroker.getEquity(), equityShouldBe);
-    return dround(simBroker.getEquity(),5) == dround(equityShouldBe,5);
+    return simBroker.getEquity() == equityShouldBe;
     return simBroker.getEquity() == equityShouldBe;
   }, "Filled short orders of qty 100 with round lot fee enabled result in the correct (qty of 100) interest being charged");
 
@@ -2681,17 +2681,17 @@ int main() {
     p.qty = -110;
     auto oid = simBroker.placeOrder(p);
     simBroker.updateClock(simBroker.getClock()+(3600));
-    double filledPrice = simBroker.getOrder(oid).filledAvgPrice;
+    currency filledPrice = simBroker.getOrder(oid).filledAvgPrice;
 
     simBroker.updateClock(simBroker.getClock()+(3600*9)); // Couple hours after postmarket
-    double price = mSource.getPrice("SPY", simBroker.getClock());
-    double interestOwed = ((price*200)*mSource.getAssetBorrowRate("SPY", simBroker.getClock()))/360;
+    currency price = mSource.getPrice("SPY", simBroker.getClock());
+    currency interestOwed = ((price*200)*mSource.getAssetBorrowRate("SPY", simBroker.getClock()))/360;
     //printf("%lf\n", interestOwed);
-    double equityShouldBe = (9000000.0+((filledPrice-price)*110))-interestOwed;
+    currency equityShouldBe = (9000000.0+((filledPrice-price)*110))-interestOwed;
  
     //printf("%lf->%lf\n", filledPrice, price);
     //printf("%lf == %lf\n", simBroker.getEquity(), equityShouldBe);
-    return dround(simBroker.getEquity(),5) == dround(equityShouldBe,5);
+    return simBroker.getEquity() == equityShouldBe;
   }, "Filled short orders of qty 110 with round lot fee enabled result in the correct (qty of 200) interest being charged");
 
   test([&mSource, &neverShortableSource]() {

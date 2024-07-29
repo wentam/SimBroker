@@ -3,6 +3,10 @@
 #include <vector>
 #include <functional>
 #include <cstdint>
+#include <boost/multiprecision/cpp_dec_float.hpp>
+
+using namespace boost::multiprecision;
+typedef cpp_dec_float_100 currency;
 
 // TODO: terminology for assets is inconsistant: "symbol" "ticker". "asset" is probably a better
 // term
@@ -15,10 +19,10 @@ class SimBrokerStockDataSource {
   public:
     struct Bar {
       uint64_t time;
-      double openPrice;
-      double closePrice;
-      double highPrice;
-      double lowPrice;
+      currency openPrice;
+      currency closePrice;
+      currency highPrice;
+      currency lowPrice;
       uint64_t volume;
     };
 
@@ -46,9 +50,9 @@ class SimBrokerStockDataSource {
     // getPrice should fall back on hour bars followed by day bars if it can't find the price with minute bars -
     // or at least look back a very long time in min bars (a month).
     // There can be very large gaps in minute bar data.
-    virtual double getPrice(std::string ticker, uint64_t time) = 0;        // Return < 0 if price is not available
+    virtual currency getPrice(std::string ticker, uint64_t time) = 0;        // Return < 0 if price is not available
 
-    virtual double getAssetBorrowRate(std::string ticker, uint64_t time) = 0;
+    virtual cpp_dec_float_100 getAssetBorrowRate(std::string ticker, uint64_t time) = 0;
 
     virtual MarketPhase getMarketPhase(uint64_t time) = 0;                 // Throw exception if data not available
     virtual MarketPhaseChange getNextMarketPhaseChange(uint64_t time) = 0; // Throw exception if data not available
@@ -94,9 +98,9 @@ class SimBroker {
     struct Position {
       uint64_t id;
       std::string symbol;
-      double avgEntryPrice;
+      currency avgEntryPrice;
       int64_t qty; // Positive value = long, negative value = short
-      double costBasis;
+      currency costBasis;
       uint64_t createdTime = 0;
 
 			int64_t lastChange = 0;
@@ -108,10 +112,10 @@ class SimBroker {
       int64_t qty = 0; // Use a negative value to sell
       OrderType type = OrderType::MARKET;
       OrderTimeInForce timeInForce = OrderTimeInForce::DAY;
-      double limitPrice = 0.0;
-      double stopPrice = 0.0;
-      double trailPrice = 0.0;
-      double trailPercent = 0.0;
+      currency limitPrice = 0.0;
+      currency stopPrice = 0.0;
+      currency trailPrice = 0.0;
+      cpp_dec_float_100 trailPercent = 0.0;
       bool extendedHours = false;
       OrderClass orderClass = OrderClass::SIMPLE;
     };
@@ -129,7 +133,7 @@ class SimBroker {
       uint64_t replacedBy;  // order id
       uint64_t replaces;    // order id
       int64_t filledQty;    // will be negative if this is a sell order
-      double filledAvgPrice;
+      currency filledAvgPrice;
 
       OrderStatus status;
 
@@ -151,13 +155,13 @@ class SimBroker {
     Order getOrder(uint64_t id);
     std::vector<Order> getOrders();
     std::vector<Position> getPositions();
-    double getBalance();
-    double getEquity();
-    double getBuyingPower();
-    double getTotalCostBasis();
+    currency getBalance();
+    currency getEquity();
+    currency getBuyingPower();
+    currency getTotalCostBasis();
     uint64_t getClock();
-    void addFunds(double chedda);
-    void rmFunds(double cheeze);
+    void addFunds(currency chedda);
+    void rmFunds(currency cheeze);
 
 
 		// PDT
@@ -172,13 +176,13 @@ class SimBroker {
 		bool PDT(); // true if your account is considered a pattern day trader
 
     // Margin
-    void setInitialMarginRequirement(double req);
-    double getInitialMarginRequirement();
-    void setMaintenanceMarginRequirement(double req);
-    double getMaintenanceMarginRequirement();
+    void setInitialMarginRequirement(cpp_dec_float_100 req);
+    cpp_dec_float_100 getInitialMarginRequirement();
+    void setMaintenanceMarginRequirement(cpp_dec_float_100 req);
+    cpp_dec_float_100 getMaintenanceMarginRequirement();
 
-    void setInterestRate(double rate);
-    double getInterestRate();
+    void setInterestRate(cpp_dec_float_100 rate);
+    cpp_dec_float_100 getInterestRate();
 
     // Note: this requires us to obtain the value of all of our positions via the data source
     // for every updateClock() call while we have any kind of loan.
@@ -200,7 +204,7 @@ class SimBroker {
     // over the resource costs of your data source.
     bool checkForMarginCall();
 
-    double getLoan();
+    cpp_dec_float_100 getLoan();
 
     void enableShortRoundLotFee();
     void disableShortRoundLotFee();
@@ -213,7 +217,7 @@ class SimBroker {
     void cleanStuckOrders();
     void updateState();
     void chargeDayInterest();
-    double estimateFillRate(SimBrokerStockDataSource::Bar b);
+    cpp_dec_float_100 estimateFillRate(SimBrokerStockDataSource::Bar b);
 
     void eachBarChunk(std::string ticker, 
                       uint64_t startTime,
@@ -228,22 +232,22 @@ class SimBroker {
 
     // Will create position if it doesn't exist
     // Will remove position if it ends up at a qty of zero
-    void addToPosition(std::string symbol, int64_t qty, double avgPrice);
+    void addToPosition(std::string symbol, int64_t qty, currency avgPrice);
 
     SimBrokerStockDataSource* stockDataSource;
-    double balance;
+    currency balance;
     uint64_t clock = 0;
     std::vector<Order>    orders;
     std::vector<Position> positions;
     bool marginEnabled = false;
     bool shortRoundLotFee = true;
     bool instaFill = false;
-    double initialMarginRequirement = 0.5;
-    double maintenanceMarginRequirement = 0.35;
+    cpp_dec_float_100 initialMarginRequirement = 0.5;
+    cpp_dec_float_100 maintenanceMarginRequirement = 0.35;
     bool marginCallHandlerDefined = false;
     bool PDTCallHandlerDefined = false;
     uint64_t lastInterestTime = 0;
-    double interestRate = 0.0375;
+    cpp_dec_float_100 interestRate = 0.0375;
     std::function<void()> marginCallHandler;
     std::function<void()> PDTCallHandler;
 		std::vector<int64_t> roundTrips;

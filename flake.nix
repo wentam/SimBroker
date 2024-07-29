@@ -19,6 +19,7 @@
         openssl
         nlohmann_json
         libpqxx
+        boost
       ];
     };
 
@@ -28,7 +29,7 @@
 
       src = ./.;
 
-      buildInputs = with pkgs; [ gcc13 ];
+      buildInputs = with pkgs; [ gcc14 boost ];
 
       dontConfigure = true;
       makeFlags = [ "-j12" ];
