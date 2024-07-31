@@ -3,11 +3,13 @@
     nixpkgs.url = github:NixOS/nixpkgs/nixos-unstable;
     flake-utils.url = "github:numtide/flake-utils";
 
-    f-alpaca-api-client.url = git+ssh://wentam.net/mnt/NAS/git-host/alpaca-api-client.git;
-    f-alpaca-api-client.inputs.nixpkgs.follows = "nixpkgs";
+    #f-alpaca-api-client.url = git+ssh://wentam.net/mnt/NAS/git-host/alpaca-api-client.git;
+    #f-alpaca-api-client.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = {self, nixpkgs, flake-utils, f-alpaca-api-client, ...}:
+  outputs = {self, nixpkgs, flake-utils,
+  #f-alpaca-api-client,
+  ...}:
   (flake-utils.lib.eachDefaultSystem (system: let pkgs = nixpkgs.legacyPackages.${system}; in rec {
 
     # Shell
@@ -15,7 +17,7 @@
       name = "build";
       buildInputs = with pkgs; [
         # For mkTestData
-        f-alpaca-api-client.packages.${pkgs.system}.default
+        #f-alpaca-api-client.packages.${pkgs.system}.default
         openssl
         nlohmann_json
         libpqxx
